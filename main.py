@@ -1,8 +1,10 @@
-# main.py - punto de entrada de la aplicación
-from src.modelo.spark_session import get_spark_session
+# main.py - punto de entrada
+# Uso:
+#   python main.py            -> ejecuta todos los ejercicios implementados
+#   python main.py ej1a       -> ejecuta solo los ejercicios indicados
+import sys
+
+from src.controlador.ibex_controller import IbexController
 
 if __name__ == "__main__":
-    # Por ahora solo comprueba que la sesión de Spark con Delta arranca
-    spark = get_spark_session()
-    print(f"Spark {spark.version} con Delta listo")
-    spark.stop()
+    IbexController().run(sys.argv[1:] or None)
