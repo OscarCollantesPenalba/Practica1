@@ -1,11 +1,12 @@
 from src.modelo import config
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
+from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
 from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a"]
 
 
 class IbexController:
@@ -63,3 +64,14 @@ class IbexController:
                           "Al pedir solo Ticker, Date y Close, Spark lee únicamente esos 3 bloques y se "
                           "salta Open, High, Low, Volume, Dividends y Stock_Splits: menos lectura de disco "
                           "y menos memoria. Con un CSV habría que leer todas las filas completas.")
+
+    def ej2a(self):
+        # Ej2a
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej2a")
+        df = leer_csv_sentimiento(self.spark)
+        self.view.esquema(df)
+        self.view.filas(df, 5)
+        self.view.mensaje("Comentario: todas las columnas llegan como string porque un CSV es texto "
+                          "plano y no guarda tipos; Spark no los infiere salvo que se le pida "
+                          "(inferSchema). Fecha y Sentimiento habrá que convertirlos en silver.")
