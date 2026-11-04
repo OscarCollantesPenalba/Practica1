@@ -1,10 +1,11 @@
 from src.modelo import config
+from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.spark_session import get_spark_session
-from src.modelo.yahoo_finance import descargar_historico
+from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c"]
 
 
 class IbexController:
@@ -38,3 +39,27 @@ class IbexController:
         df = descargar_historico(self.spark, "BBVA.MC", config.INICIO, config.FIN)
         self.view.esquema(df)
         self.view.filas(df, 5)
+
+    def ej1b(self):
+        # Ej1b
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej1b")
+        df, fallidos = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.FIN)
+        escribir_parquet(df, config.BRONZE_IBEX, "overwrite")
+        self.view.valor("Filas escritas en bronze/ibex", contar_filas(self.spark, config.BRONZE_IBEX))
+        if fallidos:
+            self.view.valor("Tickers sin datos", fallidos)
+
+    def ej1c(self):
+        # Ej1c (opcional)
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej1c")
+        df = leer_parquet(self.spark, config.BRONZE_IBEX)
+        self.view.esquema(df)
+        self.view.filas(df, 5)
+        # Column pruning: solo se leen 3 de las 9 columnas
+        self.view.filas(leer_parquet(self.spark, config.BRONZE_IBEX, ["Ticker", "Date", "Close"]), 5)
+        self.view.mensaje("Comentario: Parquet guarda cada columna en su propio bloque (column chunk). "
+                          "Al pedir solo Ticker, Date y Close, Spark lee únicamente esos 3 bloques y se "
+                          "salta Open, High, Low, Volume, Dividends y Stock_Splits: menos lectura de disco "
+                          "y menos memoria. Con un CSV habría que leer todas las filas completas.")

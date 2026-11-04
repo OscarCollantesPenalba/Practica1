@@ -1,5 +1,6 @@
 """Descarga de precios desde Yahoo Finance (yfinance) hacia DataFrames de Spark."""
 import time
+from functools import reduce
 
 import pandas as pd
 import yfinance as yf
@@ -73,3 +74,19 @@ def descargar_historico(spark, ticker, start, end):
         for f in pdf.to_dict("records")
     ]
     return spark.createDataFrame(registros, ESQUEMA_PRECIOS)
+
+
+def descargar_ibex(spark, tickers, start, end):
+    """Ej1b: descarga todos los tickers y los apila con union.
+
+    Devuelve (DataFrame, lista de tickers sin datos).
+    """
+    dataframes, fallidos = [], []
+    for ticker in tickers:
+        try:
+            dataframes.append(descargar_historico(spark, ticker, start, end))
+        except ValueError:
+            fallidos.append(ticker)
+    if not dataframes:
+        raise ValueError("No se pudo descargar ningún ticker (¿sin conexión a internet?).")
+    return reduce(lambda a, b: a.unionByName(b), dataframes), fallidos
