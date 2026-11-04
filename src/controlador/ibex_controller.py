@@ -6,7 +6,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c"]
 
 
 class IbexController:
@@ -75,3 +75,31 @@ class IbexController:
         self.view.mensaje("Comentario: todas las columnas llegan como string porque un CSV es texto "
                           "plano y no guarda tipos; Spark no los infiere salvo que se le pida "
                           "(inferSchema). Fecha y Sentimiento habrá que convertirlos en silver.")
+
+    def ej2b(self):
+        # Ej2b
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej2b")
+        df = leer_csv_sentimiento(self.spark)
+        self.view.valor("Filas leídas del CSV", df.count())
+        escribir_parquet(df, config.BRONZE_SENTIMIENTO, "overwrite")
+        self.view.valor("Filas escritas en bronze/sentimiento",
+                        contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
+
+    def ej2c(self):
+        # Ej2c (opcional)
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej2c")
+        df = leer_csv_sentimiento(self.spark)
+        antes = contar_filas(self.spark, config.BRONZE_SENTIMIENTO)
+        escribir_parquet(df, config.BRONZE_SENTIMIENTO, "append")
+        despues = contar_filas(self.spark, config.BRONZE_SENTIMIENTO)
+        self.view.valor("Filas antes del append", antes)
+        self.view.valor("Filas después del append", despues)
+        self.view.mensaje("Comentario: Parquet es inmutable, así que append solo escribe ficheros nuevos "
+                          "sin comprobar nada: cada fila del CSV queda duplicada. No hay clave ni "
+                          "transacciones, por eso la carga no es idempotente (Delta lo resuelve con MERGE).")
+        # Se deshace el duplicado para que el resto de ejercicios parta de bronze correcta
+        escribir_parquet(df, config.BRONZE_SENTIMIENTO, "overwrite")
+        self.view.valor("Filas tras restaurar con overwrite",
+                        contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
