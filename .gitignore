@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.env
+spark-warehouse/
+metastore_db/
+derby.log
+# El data lake y las exportaciones se regeneran ejecutando el proyecto
+data/lake/
+data/export/
