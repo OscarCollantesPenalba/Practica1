@@ -1,4 +1,5 @@
 from src.modelo import config
+from src.modelo.delta_ops import convertir_a_delta, ficheros_delta_log, historial
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
@@ -6,7 +7,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3"]
 
 
 class IbexController:
@@ -103,3 +104,25 @@ class IbexController:
         escribir_parquet(df, config.BRONZE_SENTIMIENTO, "overwrite")
         self.view.valor("Filas tras restaurar con overwrite",
                         contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
+
+#========================================================================================
+#===================CLASE 2 - Delta Lake sobre bronze ===================================
+#========================================================================================
+
+    def ej3(self):
+        # Ej3
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej3")
+        for nombre, ruta in [("bronze/ibex", config.BRONZE_IBEX),
+                             ("bronze/sentimiento", config.BRONZE_SENTIMIENTO)]:
+            convertir_a_delta(self.spark, ruta)
+            self.view.valor("Tabla Delta", nombre)
+            h = historial(self.spark, ruta).select("version", "timestamp", "operation",
+                                                   "operationParameters", "operationMetrics")
+            self.view.filas(h, 5, False)
+            self.view.valor("Ficheros en _delta_log", ficheros_delta_log(ruta))
+        self.view.mensaje("Comentario: ha aparecido la carpeta _delta_log con el commit de la versión 0 "
+                          "(un JSON, operación CONVERT) y ficheros auxiliares de checksum. Los ficheros "
+                          "Parquet no se han tocado: solo se han registrado en el log. A partir de ahora "
+                          "cada cambio añadirá un JSON nuevo al log, y recorrerlo permite reconstruir el "
+                          "estado de la tabla o volver a una versión anterior.")

@@ -7,8 +7,8 @@ class IbexView:
     def esquema(self, df):
         df.printSchema()
 
-    def filas(self, df, n=5):
-        df.show(n)
+    def filas(self, df, n=5, truncate=True):
+        df.show(n, truncate=truncate)
 
     def valor(self, etiqueta, valor):
         print(f"{etiqueta}: {valor}")
