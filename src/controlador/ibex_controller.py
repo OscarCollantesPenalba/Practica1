@@ -1,4 +1,5 @@
 from src.modelo import config
+from src.modelo.calidad import contar_nulos
 from src.modelo.delta_ops import (con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
                                   merge_insertar_nuevos, version_actual)
@@ -9,7 +10,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b"]
 
 
 class IbexController:
@@ -177,3 +178,31 @@ class IbexController:
                               "rechaza el append y la tabla queda intacta (misma versión y mismas filas). "
                               "Protege la tabla de escrituras accidentales; si el cambio es intencionado "
                               "hay que pedirlo expresamente con mergeSchema (Ej5b).")
+
+    def ej5b(self):
+        # Ej5b
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej5b")
+        ruta = config.BRONZE_IBEX
+        df_nuevo = con_close_mas5(leer_delta(self.spark, ruta))
+        antes = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
+        aceptada, mensaje = intentar_escribir_delta(df_nuevo, ruta, "append", True)
+        despues = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
+        self.view.valor("¿Delta acepta la escritura con mergeSchema?", aceptada)
+        if mensaje:
+            self.view.valor("Mensaje de Delta", mensaje)
+        self.view.valor("Versión / filas antes", f"{antes[0]} / {antes[1]}")
+        self.view.valor("Versión / filas después", f"{despues[0]} / {despues[1]}")
+        tabla = leer_delta(self.spark, ruta)
+        self.view.esquema(tabla)
+        if aceptada:
+            nulos = contar_nulos(tabla, "Close_mas5")
+            self.view.valor("Filas con Close_mas5 nulo (las antiguas)", nulos)
+            self.view.valor("Filas con Close_mas5 con valor (las nuevas)", despues[1] - nulos)
+            self.view.mensaje("Comentario: con mergeSchema=true Delta ya no rechaza la escritura: añade "
+                              "Close_mas5 al esquema de la tabla (evolución de esquema) y las filas antiguas, "
+                              "que no tienen ese dato, quedan con valor nulo. Como se ha escrito la tabla "
+                              "entera, cada fila existe ahora dos veces (una sin Close_mas5 y otra con él); "
+                              "el Ej6 lo deshará con RESTORE.")
+        else:
+            self.view.mensaje("Comentario: Delta sigue rechazando la escritura incluso con mergeSchema.")
