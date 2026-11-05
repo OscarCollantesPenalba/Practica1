@@ -1,6 +1,7 @@
 from src.modelo import config
-from src.modelo.delta_ops import (contar_filas_delta, convertir_a_delta, ficheros_delta_log,
-                                  historial, merge_insertar_nuevos, version_actual)
+from src.modelo.delta_ops import (con_close_mas5, contar_filas_delta, convertir_a_delta,
+                                  ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
+                                  merge_insertar_nuevos, version_actual)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
@@ -8,7 +9,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a"]
 
 
 class IbexController:
@@ -153,3 +154,26 @@ class IbexController:
                           "En la primera ejecución entran las sesiones posteriores al 1 de octubre; en la "
                           "segunda todas las filas ya existen y no se inserta ninguna, así que la carga es "
                           "idempotente (con append se duplicarían, como vimos en el Ej2c).")
+
+    def ej5a(self):
+        # Ej5a
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej5a")
+        ruta = config.BRONZE_IBEX
+        df_nuevo = con_close_mas5(leer_delta(self.spark, ruta))
+        antes = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
+        aceptada, mensaje = intentar_escribir_delta(df_nuevo, ruta, "append")
+        despues = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
+        self.view.valor("¿Delta acepta la escritura?", aceptada)
+        if mensaje:
+            self.view.valor("Mensaje de Delta", mensaje)
+        self.view.valor("Versión / filas antes", f"{antes[0]} / {antes[1]}")
+        self.view.valor("Versión / filas después", f"{despues[0]} / {despues[1]}")
+        if aceptada:
+            self.view.mensaje("Comentario: Delta ha aceptado la escritura, algo que no se esperaba.")
+        else:
+            self.view.mensaje("Comentario: Delta valida el esquema al escribir (schema enforcement). El "
+                              "DataFrame trae una columna, Close_mas5, que la tabla no tiene, así que "
+                              "rechaza el append y la tabla queda intacta (misma versión y mismas filas). "
+                              "Protege la tabla de escrituras accidentales; si el cambio es intencionado "
+                              "hay que pedirlo expresamente con mergeSchema (Ej5b).")

@@ -2,6 +2,8 @@
 from pathlib import Path
 
 from delta.tables import DeltaTable
+from pyspark.errors import AnalysisException
+from pyspark.sql import functions as F
 
 
 def convertir_a_delta(spark, ruta):
@@ -46,3 +48,33 @@ def merge_insertar_nuevos(spark, ruta, nuevos, claves):
      .merge(nuevos.alias("n"), condicion)
      .whenNotMatchedInsertAll()
      .execute())
+
+
+def leer_delta(spark, ruta):
+    """Lee la versión actual de una tabla Delta."""
+    return spark.read.format("delta").load(ruta)
+
+
+def con_close_mas5(df):
+    """Ej5a: añade la columna Close_mas5 (Close + 5). Es una columna que la tabla NO tiene."""
+    return df.withColumn("Close_mas5", F.col("Close") + 5)
+
+
+def escribir_delta(df, ruta, modo="append", merge_schema=False):
+    """Escribe un DataFrame en una tabla Delta. Con merge_schema=True permite que la tabla
+    incorpore columnas nuevas (evolución de esquema); sin él, Delta valida el esquema."""
+    escritor = df.write.format("delta").mode(modo)
+    if merge_schema:
+        escritor = escritor.option("mergeSchema", "true")
+    escritor.save(ruta)
+
+
+def intentar_escribir_delta(df, ruta, modo="append", merge_schema=False):
+    """Como escribir_delta, pero si Delta rechaza la escritura (error de esquema) devuelve
+    (False, primera línea del error) en lugar de romper el programa. Si la acepta: (True, "")."""
+    try:
+        escribir_delta(df, ruta, modo, merge_schema)
+    except AnalysisException as error:
+        lineas = [l.strip() for l in str(error).splitlines() if l.strip()]
+        return False, (lineas[0] if lineas else type(error).__name__)
+    return True, ""
