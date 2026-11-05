@@ -89,4 +89,9 @@ def descargar_ibex(spark, tickers, start, end):
             fallidos.append(ticker)
     if not dataframes:
         raise ValueError("No se pudo descargar ningún ticker (¿sin conexión a internet?).")
-    return reduce(lambda a, b: a.unionByName(b), dataframes), fallidos
+    df = reduce(lambda a, b: a.unionByName(b), dataframes)
+    # Se materializa una sola vez: la unión de 35 DataFrames creados desde listas de Python es
+    # cara de recalcular, y operaciones como MERGE leen la fuente varias veces.
+    df.cache()
+    df.count()
+    return df, fallidos

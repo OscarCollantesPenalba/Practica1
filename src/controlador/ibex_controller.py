@@ -2,8 +2,8 @@ from src.modelo import config
 from src.modelo.calidad import contar_nulos, diferencia_filas
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
-                                  leer_delta_version, merge_insertar_nuevos, version_actual,
-                                  version_de_operacion)
+                                  leer_delta_version, merge_insertar_nuevos, restaurar_version,
+                                  version_actual, version_de_operacion)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
@@ -11,7 +11,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6"]
 
 
 class IbexController:
@@ -253,3 +253,37 @@ class IbexController:
                           "tiene una columna más, filas duplicadas por el Ej5b y no tiene BBVA por el Ej5c. "
                           "versionAsOf solo lee: la tabla actual no cambia (la versión sigue siendo la misma); "
                           "para dejarla como estaba hace falta RESTORE (Ej6).")
+
+    def ej6(self):
+        # Ej6
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej6")
+        ruta = config.BRONZE_IBEX
+        # Se vuelve al estado que dejó el MERGE del Ej4 (si no insertó nada, al de la conversión)
+        version = version_de_operacion(self.spark, ruta, "MERGE")
+        if version is None:
+            version = 0
+        # Los números se calculan antes de restaurar: el DataFrame es perezoso
+        tabla = leer_delta(self.spark, ruta)
+        antes = (version_actual(self.spark, ruta), tabla.count(), len(tabla.columns))
+        self.view.valor("Antes del RESTORE: versión / filas / columnas", f"{antes[0]} / {antes[1]} / {antes[2]}")
+        restaurar_version(self.spark, ruta, version)
+        tabla = leer_delta(self.spark, ruta)
+        despues = (version_actual(self.spark, ruta), tabla.count(), len(tabla.columns))
+        self.view.valor(f"Después del RESTORE a la versión {version}: versión / filas / columnas",
+                        f"{despues[0]} / {despues[1]} / {despues[2]}")
+        h = historial(self.spark, ruta).select("version", "timestamp", "operation", "operationParameters")
+        self.view.filas(h, 5, False)
+        objetivo = leer_delta_version(self.spark, ruta, version)
+        solo_objetivo, solo_tabla = diferencia_filas(objetivo, tabla)
+        mismas_columnas = objetivo.columns == tabla.columns
+        self.view.valor(f"Filas solo en la versión {version} / solo en la tabla actual", f"{solo_objetivo} / {solo_tabla}")
+        self.view.valor("¿Mismas columnas?", mismas_columnas)
+        self.view.mensaje("Comentario: a diferencia de versionAsOf, que solo lee, RESTORE cambia la tabla "
+                          "actual. No borra el historial: crea una versión nueva cuyo contenido es idéntico "
+                          "al de la versión indicada, así que el log conserva todo lo ocurrido, incluido el "
+                          "propio RESTORE.")
+        if solo_objetivo == 0 and solo_tabla == 0 and mismas_columnas:
+            self.view.mensaje(f"Comprobación: la tabla actual es idéntica a la versión {version}.")
+        else:
+            self.view.mensaje(f"Aviso: la tabla actual no coincide del todo con la versión {version}.")

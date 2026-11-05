@@ -98,3 +98,9 @@ def version_de_operacion(spark, ruta, operacion):
     return (historial(spark, ruta)
             .filter(F.col("operation") == operacion)
             .agg(F.max("version")).collect()[0][0])
+
+
+def restaurar_version(spark, ruta, version):
+    """Ej6: deja la tabla como estaba en la versión indicada (RESTORE). No borra el historial:
+    crea un commit nuevo cuyo contenido es idéntico al de esa versión."""
+    DeltaTable.forPath(spark, ruta).restoreToVersion(version)
