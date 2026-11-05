@@ -19,7 +19,11 @@ def get_spark_session(app_name="IBEX35"):
                .master("local[*]")
                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                .config("spark.sql.catalog.spark_catalog",
-                       "org.apache.spark.sql.delta.catalog.DeltaCatalog"))
+                       "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+               # Ubicación fija del warehouse: da igual desde qué carpeta se ejecute, Spark no
+               # crea un spark-warehouse suelto fuera del proyecto (nosotros guardamos por ruta).
+               .config("spark.sql.warehouse.dir",
+                       (BASE_DIR / "data" / "spark-warehouse").as_posix()))
 
     # Conector JDBC de MySQL: solo se añade si el .jar está en lib/ (se usará al
     # publicar la capa gold; para bronze y silver no hace falta).

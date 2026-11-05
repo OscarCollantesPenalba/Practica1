@@ -1,5 +1,6 @@
 from src.modelo import config
-from src.modelo.delta_ops import convertir_a_delta, ficheros_delta_log, historial
+from src.modelo.delta_ops import (contar_filas_delta, convertir_a_delta, ficheros_delta_log,
+                                  historial, merge_insertar_nuevos, version_actual)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
@@ -7,7 +8,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4"]
 
 
 class IbexController:
@@ -122,7 +123,33 @@ class IbexController:
             self.view.filas(h, 5, False)
             self.view.valor("Ficheros en _delta_log", ficheros_delta_log(ruta))
         self.view.mensaje("Comentario: ha aparecido la carpeta _delta_log con el commit de la versión 0 "
-                          "(un JSON, operación CONVERT) y ficheros auxiliares de checksum. Los ficheros "
-                          "Parquet no se han tocado: solo se han registrado en el log. A partir de ahora "
-                          "cada cambio añadirá un JSON nuevo al log, y recorrerlo permite reconstruir el "
-                          "estado de la tabla o volver a una versión anterior.")
+                          "(00000000000000000000.json, operación CONVERT), un checkpoint en Parquet (resumen "
+                          "del estado de la tabla para no releer todos los JSON), el puntero _last_checkpoint, "
+                          "la carpeta _staged_commits (reservada para commits en preparación) y ficheros .crc "
+                          "de checksum de Hadoop. Los ficheros Parquet de datos no se han tocado: solo se han "
+                          "registrado en el log. A partir de ahora cada cambio añadirá un JSON nuevo al log, "
+                          "y recorrerlo permite reconstruir el estado de la tabla o volver a una versión anterior.")
+
+    def ej4(self):
+        # Ej4
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej4")
+        ruta = config.BRONZE_IBEX
+        self.view.valor("Versión actual de bronze/ibex", version_actual(self.spark, ruta))
+        self.view.valor("Filas actuales de bronze/ibex", contar_filas_delta(self.spark, ruta))
+        # Se vuelve a descargar todo el periodo hasta hoy; MERGE decide qué entra
+        nuevos, fallidos = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.hoy())
+        if fallidos:
+            self.view.valor("Tickers sin datos", fallidos)
+        for ejecucion in (1, 2):
+            antes = contar_filas_delta(self.spark, ruta)
+            merge_insertar_nuevos(self.spark, ruta, nuevos, ["Ticker", "Date"])
+            despues = contar_filas_delta(self.spark, ruta)
+            self.view.valor(f"MERGE {ejecucion}: filas antes / después / insertadas",
+                            f"{antes} / {despues} / {despues - antes}")
+            self.view.valor(f"MERGE {ejecucion}: versión de la tabla", version_actual(self.spark, ruta))
+        self.view.mensaje("Comentario: MERGE compara cada fila descargada con la tabla por la clave "
+                          "(Ticker, Date) e inserta solo las que no existen (whenNotMatchedInsertAll). "
+                          "En la primera ejecución entran las sesiones posteriores al 1 de octubre; en la "
+                          "segunda todas las filas ya existen y no se inserta ninguna, así que la carga es "
+                          "idempotente (con append se duplicarían, como vimos en el Ej2c).")

@@ -1,5 +1,6 @@
 """Configuración central: rutas del data lake, periodo de descarga y tickers."""
 import os
+from datetime import date
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -30,3 +31,9 @@ TICKERS_IBEX = [
     "AENA.MC", "FER.MC", "ITX.MC", "AMS.MC", "IAG.MC", "GRF.MC", "FDR.MC",
     "SLR.MC", "ROVI.MC", "LOG.MC", "IDR.MC", "PUIG.MC", "COL.MC", "MRL.MC",
 ]
+
+
+def hoy():
+    """Fecha de hoy (YYYY-MM-DD). Usada como final EXCLUSIVO de la descarga: así se llega
+    hasta la última sesión cerrada y no se guarda la sesión de hoy a medias."""
+    return date.today().isoformat()

@@ -4,6 +4,7 @@ __pycache__/
 .idea/
 .env
 spark-warehouse/
+data/spark-warehouse/
 metastore_db/
 derby.log
 # El data lake y las exportaciones se regeneran ejecutando el proyecto
