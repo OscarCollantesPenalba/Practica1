@@ -1,6 +1,6 @@
 from src.modelo import config
 from src.modelo.calidad import contar_nulos
-from src.modelo.delta_ops import (con_close_mas5, contar_filas_delta, convertir_a_delta,
+from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
                                   merge_insertar_nuevos, version_actual)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
@@ -10,7 +10,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c"]
 
 
 class IbexController:
@@ -206,3 +206,23 @@ class IbexController:
                               "el Ej6 lo deshará con RESTORE.")
         else:
             self.view.mensaje("Comentario: Delta sigue rechazando la escritura incluso con mergeSchema.")
+
+    def ej5c(self):
+        # Ej5c
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej5c")
+        ruta = config.BRONZE_IBEX
+        condicion = "Ticker = 'BBVA.MC'"
+        total_antes = contar_filas_delta(self.spark, ruta)
+        version_antes = version_actual(self.spark, ruta)
+        self.view.valor("Filas de BBVA.MC antes del DELETE", contar_filas_delta(self.spark, ruta, condicion))
+        self.view.filas(leer_delta(self.spark, ruta, condicion), 5)
+        borrar_filas(self.spark, ruta, condicion)
+        self.view.valor("Filas de BBVA.MC después del DELETE", contar_filas_delta(self.spark, ruta, condicion))
+        self.view.filas(leer_delta(self.spark, ruta, condicion), 5)
+        self.view.valor("Filas totales antes / después", f"{total_antes} / {contar_filas_delta(self.spark, ruta)}")
+        self.view.valor("Versión antes / después", f"{version_antes} / {version_actual(self.spark, ruta)}")
+        self.view.mensaje("Comentario: DELETE borra solo las filas que cumplen la condición y deja el resto. "
+                          "No elimina los ficheros del disco: crea una versión nueva del log en la que los "
+                          "ficheros afectados dejan de formar parte de la tabla (siguen en disco hasta un "
+                          "VACUUM), por eso el time travel todavía puede recuperar esas filas.")

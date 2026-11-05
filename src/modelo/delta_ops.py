@@ -31,9 +31,10 @@ def version_actual(spark, ruta):
     return DeltaTable.forPath(spark, ruta).history(1).select("version").collect()[0][0]
 
 
-def contar_filas_delta(spark, ruta):
-    """Número de filas de la versión actual de una tabla Delta."""
-    return spark.read.format("delta").load(ruta).count()
+def contar_filas_delta(spark, ruta, condicion=None):
+    """Número de filas de la versión actual de una tabla Delta (opcionalmente solo las que
+    cumplen una condición SQL, por ejemplo "Ticker = 'BBVA.MC'")."""
+    return leer_delta(spark, ruta, condicion).count()
 
 
 def merge_insertar_nuevos(spark, ruta, nuevos, claves):
@@ -50,9 +51,10 @@ def merge_insertar_nuevos(spark, ruta, nuevos, claves):
      .execute())
 
 
-def leer_delta(spark, ruta):
-    """Lee la versión actual de una tabla Delta."""
-    return spark.read.format("delta").load(ruta)
+def leer_delta(spark, ruta, condicion=None):
+    """Lee la versión actual de una tabla Delta (opcionalmente filtrada por una condición SQL)."""
+    df = spark.read.format("delta").load(ruta)
+    return df.filter(condicion) if condicion else df
 
 
 def con_close_mas5(df):
@@ -78,3 +80,9 @@ def intentar_escribir_delta(df, ruta, modo="append", merge_schema=False):
         lineas = [l.strip() for l in str(error).splitlines() if l.strip()]
         return False, (lineas[0] if lineas else type(error).__name__)
     return True, ""
+
+
+def borrar_filas(spark, ruta, condicion):
+    """Ej5c: DELETE de las filas que cumplen la condición. Crea una versión nueva en el log; los
+    ficheros afectados dejan de formar parte de la tabla pero siguen en disco hasta un VACUUM."""
+    DeltaTable.forPath(spark, ruta).delete(condicion)
