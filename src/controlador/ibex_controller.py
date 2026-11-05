@@ -1,8 +1,9 @@
 from src.modelo import config
-from src.modelo.calidad import contar_nulos
+from src.modelo.calidad import contar_nulos, diferencia_filas
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
-                                  merge_insertar_nuevos, version_actual)
+                                  leer_delta_version, merge_insertar_nuevos, version_actual,
+                                  version_de_operacion)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
@@ -10,7 +11,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d"]
 
 
 class IbexController:
@@ -226,3 +227,29 @@ class IbexController:
                           "No elimina los ficheros del disco: crea una versión nueva del log en la que los "
                           "ficheros afectados dejan de formar parte de la tabla (siguen en disco hasta un "
                           "VACUUM), por eso el time travel todavía puede recuperar esas filas.")
+
+    def ej5d(self):
+        # Ej5d
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej5d")
+        ruta = config.BRONZE_IBEX
+        h = historial(self.spark, ruta).select("version", "timestamp", "operation",
+                                               "operationParameters", "operationMetrics")
+        self.view.filas(h, 10, False)
+        # La versión de antes del Ej5a es la que dejó el MERGE del Ej4 (el Ej5a no escribió nada)
+        version = version_de_operacion(self.spark, ruta, "MERGE")
+        if version is None:  # si el MERGE no insertó nada, el estado del Ej4 es el de la conversión
+            version = 0
+        antigua = leer_delta_version(self.spark, ruta, version)
+        actual = leer_delta(self.spark, ruta)
+        self.view.valor("Versión de antes del Ej5a (último MERGE)", version)
+        self.view.valor(f"versionAsOf {version}: filas / columnas", f"{antigua.count()} / {len(antigua.columns)}")
+        self.view.valor("Tabla actual: filas / columnas", f"{actual.count()} / {len(actual.columns)}")
+        solo_antigua, solo_actual = diferencia_filas(antigua, actual)
+        self.view.valor(f"Filas solo en la versión {version} / solo en la actual", f"{solo_antigua} / {solo_actual}")
+        self.view.valor("Versión actual tras leer con versionAsOf", version_actual(self.spark, ruta))
+        self.view.mensaje("Comentario: no está todo igual. La versión antigua conserva el estado del Ej4 (sin "
+                          "Close_mas5, sin duplicados y con las filas de BBVA), mientras que la tabla actual "
+                          "tiene una columna más, filas duplicadas por el Ej5b y no tiene BBVA por el Ej5c. "
+                          "versionAsOf solo lee: la tabla actual no cambia (la versión sigue siendo la misma); "
+                          "para dejarla como estaba hace falta RESTORE (Ej6).")

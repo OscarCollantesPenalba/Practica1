@@ -86,3 +86,15 @@ def borrar_filas(spark, ruta, condicion):
     """Ej5c: DELETE de las filas que cumplen la condición. Crea una versión nueva en el log; los
     ficheros afectados dejan de formar parte de la tabla pero siguen en disco hasta un VACUUM."""
     DeltaTable.forPath(spark, ruta).delete(condicion)
+
+
+def leer_delta_version(spark, ruta, version):
+    """Lee una versión antigua de la tabla (time travel). Solo LEE: la tabla actual no cambia."""
+    return spark.read.format("delta").option("versionAsOf", version).load(ruta)
+
+
+def version_de_operacion(spark, ruta, operacion):
+    """Última versión cuya operación es 'operacion' (por ejemplo "MERGE"), o None si no hay ninguna."""
+    return (historial(spark, ruta)
+            .filter(F.col("operation") == operacion)
+            .agg(F.max("version")).collect()[0][0])
