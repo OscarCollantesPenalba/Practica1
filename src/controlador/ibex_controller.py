@@ -1,5 +1,6 @@
 from src.modelo import config
 from src.modelo.calidad import claves_con_nulo, contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.integracion import construir_dim_empresa, construir_dim_fecha, construir_hecho
 from src.modelo.limpieza import limpiar_empresas, limpiar_precios, limpiar_sentimiento
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   escribir_delta, ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
@@ -13,7 +14,7 @@ from src.modelo.yahoo_finance import (descargar_historico, descargar_ibex, desca
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10"]
 
 
 class IbexController:
@@ -363,3 +364,30 @@ class IbexController:
                           "o incoherentes y los duplicados. El sector de cada empresa no viene en el histórico: "
                           "se descarga del objeto info de Yahoo y se guarda como dimensión aparte, en crudo "
                           "(bronze/empresas) y corregida (silver/empresas, con el sector también en español).")
+
+    def ej10(self):
+        # Ej10
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej10")
+        precios = leer_delta(self.spark, config.SILVER_IBEX)
+        empresas = leer_delta(self.spark, config.SILVER_EMPRESAS)
+        sentimiento = leer_delta(self.spark, config.SILVER_SENTIMIENTO)
+        hecho = construir_hecho(precios, empresas, sentimiento)
+        escribir_delta(hecho, config.GOLD_HECHO, "overwrite", overwrite_schema=True)
+        hecho = leer_delta(self.spark, config.GOLD_HECHO)
+        escribir_delta(construir_dim_empresa(empresas), config.GOLD_DIM_EMPRESA, "overwrite", overwrite_schema=True)
+        escribir_delta(construir_dim_fecha(hecho), config.GOLD_DIM_FECHA, "overwrite", overwrite_schema=True)
+        filas_hecho = hecho.count()
+        con_sentimiento = hecho.filter("Sentimiento is not null").count()
+        self.view.valor("Filas de silver/ibex / hecho_cotizacion", f"{precios.count()} / {filas_hecho}")
+        self.view.valor("Filas del hecho con sentimiento / sin sentimiento",
+                        f"{con_sentimiento} / {filas_hecho - con_sentimiento}")
+        self.view.valor("Filas de dim_empresa", contar_filas_delta(self.spark, config.GOLD_DIM_EMPRESA))
+        self.view.valor("Filas de dim_fecha", contar_filas_delta(self.spark, config.GOLD_DIM_FECHA))
+        self.view.esquema(hecho)
+        self.view.filas(hecho.orderBy("Ticker", "Fecha"), 5)
+        self.view.mensaje("Comentario: modelo en estrella. El hecho (hecho_cotizacion) tiene una fila por "
+                          "empresa y día con las medidas (precios, volumen, sentimiento); las dimensiones "
+                          "dim_empresa (Ticker, sector, industria...) y dim_fecha (año, mes, día de la "
+                          "semana...) aportan los atributos para filtrar y agrupar. El cruce es un left join: "
+                          "no se pierde ninguna cotización, y si no hay sentimiento queda nulo.")

@@ -20,6 +20,9 @@ BRONZE_EMPRESAS = (LAKE_DIR / "bronze" / "empresas").as_posix()
 SILVER_SENTIMIENTO = (LAKE_DIR / "silver" / "sentimiento").as_posix()
 SILVER_IBEX = (LAKE_DIR / "silver" / "ibex").as_posix()
 SILVER_EMPRESAS = (LAKE_DIR / "silver" / "empresas").as_posix()
+GOLD_HECHO = (LAKE_DIR / "gold" / "hecho_cotizacion").as_posix()
+GOLD_DIM_EMPRESA = (LAKE_DIR / "gold" / "dim_empresa").as_posix()
+GOLD_DIM_FECHA = (LAKE_DIR / "gold" / "dim_fecha").as_posix()
 
 # Periodo: últimos 2 años, con último día el 1 de octubre de 2026.
 # En yfinance el parámetro end es EXCLUSIVO, por eso se pone el día siguiente.
