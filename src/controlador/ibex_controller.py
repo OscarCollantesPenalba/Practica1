@@ -1,5 +1,5 @@
 from src.modelo import config
-from src.modelo.calidad import contar_nulos, diferencia_filas
+from src.modelo.calidad import contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
                                   leer_delta_version, merge_insertar_nuevos, restaurar_version,
@@ -7,11 +7,11 @@ from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_del
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
-from src.modelo.yahoo_finance import descargar_historico, descargar_ibex
+from src.modelo.yahoo_finance import descargar_historico, descargar_ibex, explorar_yahoo
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7"]
 
 
 class IbexController:
@@ -287,3 +287,27 @@ class IbexController:
             self.view.mensaje(f"Comprobación: la tabla actual es idéntica a la versión {version}.")
         else:
             self.view.mensaje(f"Aviso: la tabla actual no coincide del todo con la versión {version}.")
+
+#========================================================================================
+#===================CLASE 3 - Capas silver y gold =======================================
+#========================================================================================
+
+    def ej7(self):
+        # Ej7
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej7")
+        self.view.seccion("Perfil de bronze/ibex (precios)")
+        for etiqueta, valor in perfil_precios(leer_delta(self.spark, config.BRONZE_IBEX)).items():
+            self.view.valor(etiqueta, valor)
+        self.view.seccion("Perfil de bronze/sentimiento (CSV del experto)")
+        for etiqueta, valor in perfil_sentimiento(leer_delta(self.spark, config.BRONZE_SENTIMIENTO)).items():
+            self.view.valor(etiqueta, valor)
+        self.view.seccion("Datos que ofrece Yahoo Finance (BBVA.MC)")
+        n_campos, seleccion, fuentes = explorar_yahoo("BBVA.MC")
+        self.view.valor("Campos en el objeto info", n_campos)
+        for campo, valor in seleccion.items():
+            self.view.valor(f"  info.{campo}", valor)
+        for fuente, detalle in fuentes:
+            self.view.valor(f"  {fuente}", detalle)
+        self.view.mensaje("Comentario: la reflexión sobre cómo incorporar la información del experto con "
+                          "estos datos está en el PDF.")
