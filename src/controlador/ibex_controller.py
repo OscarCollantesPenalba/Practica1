@@ -1,7 +1,8 @@
 from src.modelo import config
 from src.modelo.calidad import contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.limpieza import limpiar_sentimiento
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
-                                  ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
+                                  escribir_delta, ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
                                   leer_delta_version, merge_insertar_nuevos, restaurar_version,
                                   version_actual, version_de_operacion)
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
@@ -11,7 +12,7 @@ from src.modelo.yahoo_finance import descargar_historico, descargar_ibex, explor
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8"]
 
 
 class IbexController:
@@ -311,3 +312,22 @@ class IbexController:
             self.view.valor(f"  {fuente}", detalle)
         self.view.mensaje("Comentario: la reflexión sobre cómo incorporar la información del experto con "
                           "estos datos está en el PDF.")
+
+    def ej8(self):
+        # Ej8
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej8")
+        bronce = leer_delta(self.spark, config.BRONZE_SENTIMIENTO)
+        escribir_delta(limpiar_sentimiento(bronce), config.SILVER_SENTIMIENTO, "overwrite", overwrite_schema=True)
+        plata = leer_delta(self.spark, config.SILVER_SENTIMIENTO)
+        self.view.esquema(plata)
+        self.view.filas(plata.orderBy("Fecha", "Sector"), 5)
+        filas_bronce, filas_plata = contar_filas_delta(self.spark, config.BRONZE_SENTIMIENTO), plata.count()
+        self.view.valor("Filas de bronze/sentimiento", filas_bronce)
+        self.view.valor("Filas de silver/sentimiento", filas_plata)
+        self.view.valor("Filas descartadas", filas_bronce - filas_plata)
+        self.view.valor("Sectores en silver", [r["Sector"] for r in plata.select("Sector").distinct().orderBy("Sector").collect()])
+        self.view.mensaje("Comentario: Fecha pasa de texto a date y Sentimiento de texto a double (con try_cast, "
+                          "aceptando coma decimal). Sector se normaliza (sin espacios y con el formato de "
+                          "Yahoo, p. ej. Financial Services) para poder cruzarlo con el sector de cada empresa. "
+                          "Se descartan los nulos y los duplicados por (Fecha, Sector).")

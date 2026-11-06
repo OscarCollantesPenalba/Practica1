@@ -16,6 +16,7 @@ CSV_SENTIMIENTO = DATA_DIR / "sentimiento_ibex.csv"
 # Rutas con barras "/" (Spark las acepta también en Windows).
 BRONZE_IBEX = (LAKE_DIR / "bronze" / "ibex").as_posix()
 BRONZE_SENTIMIENTO = (LAKE_DIR / "bronze" / "sentimiento").as_posix()
+SILVER_SENTIMIENTO = (LAKE_DIR / "silver" / "sentimiento").as_posix()
 
 # Periodo: últimos 2 años, con último día el 1 de octubre de 2026.
 # En yfinance el parámetro end es EXCLUSIVO, por eso se pone el día siguiente.

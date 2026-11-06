@@ -62,12 +62,16 @@ def con_close_mas5(df):
     return df.withColumn("Close_mas5", F.col("Close") + 5)
 
 
-def escribir_delta(df, ruta, modo="append", merge_schema=False):
+def escribir_delta(df, ruta, modo="append", merge_schema=False, overwrite_schema=False):
     """Escribe un DataFrame en una tabla Delta. Con merge_schema=True permite que la tabla
-    incorpore columnas nuevas (evolución de esquema); sin él, Delta valida el esquema."""
+    incorpore columnas nuevas (evolución de esquema); sin él, Delta valida el esquema.
+    Con overwrite_schema=True (solo con modo overwrite) la tabla se reconstruye con el esquema
+    del DataFrame; sirve para regenerar silver y gold sin perder el historial de versiones."""
     escritor = df.write.format("delta").mode(modo)
     if merge_schema:
         escritor = escritor.option("mergeSchema", "true")
+    if overwrite_schema:
+        escritor = escritor.option("overwriteSchema", "true")
     escritor.save(ruta)
 
 
