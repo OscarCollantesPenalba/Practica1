@@ -1,6 +1,6 @@
 from src.modelo import config
-from src.modelo.calidad import contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
-from src.modelo.limpieza import limpiar_sentimiento
+from src.modelo.calidad import claves_con_nulo, contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.limpieza import limpiar_empresas, limpiar_precios, limpiar_sentimiento
 from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
                                   escribir_delta, ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
                                   leer_delta_version, merge_insertar_nuevos, restaurar_version,
@@ -8,11 +8,12 @@ from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_del
 from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.sentimiento import leer_csv_sentimiento
 from src.modelo.spark_session import get_spark_session
-from src.modelo.yahoo_finance import descargar_historico, descargar_ibex, explorar_yahoo
+from src.modelo.yahoo_finance import (descargar_historico, descargar_ibex, descargar_info_empresas,
+                                      explorar_yahoo)
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9"]
 
 
 class IbexController:
@@ -331,3 +332,34 @@ class IbexController:
                           "aceptando coma decimal). Sector se normaliza (sin espacios y con el formato de "
                           "Yahoo, p. ej. Financial Services) para poder cruzarlo con el sector de cada empresa. "
                           "Se descartan los nulos y los duplicados por (Fecha, Sector).")
+
+    def ej9(self):
+        # Ej9
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej9")
+        # Dimensión de empresas: crudo (bronze) y corregido (silver)
+        info, sin_info = descargar_info_empresas(self.spark, config.TICKERS_IBEX)
+        escribir_delta(info, config.BRONZE_EMPRESAS, "overwrite", overwrite_schema=True)
+        empresas_bronce = leer_delta(self.spark, config.BRONZE_EMPRESAS)
+        escribir_delta(limpiar_empresas(empresas_bronce), config.SILVER_EMPRESAS, "overwrite", overwrite_schema=True)
+        empresas = leer_delta(self.spark, config.SILVER_EMPRESAS)
+        # Precios: silver
+        precios_bronce = leer_delta(self.spark, config.BRONZE_IBEX)
+        escribir_delta(limpiar_precios(precios_bronce), config.SILVER_IBEX, "overwrite", overwrite_schema=True)
+        precios = leer_delta(self.spark, config.SILVER_IBEX)
+        filas_bronce, filas_plata = precios_bronce.count(), precios.count()
+        self.view.valor("Filas de bronze/ibex / silver/ibex / descartadas",
+                        f"{filas_bronce} / {filas_plata} / {filas_bronce - filas_plata}")
+        self.view.valor("Filas de bronze/empresas / silver/empresas",
+                        f"{empresas_bronce.count()} / {empresas.count()}")
+        if sin_info:
+            self.view.valor("Tickers sin datos de Yahoo", sin_info)
+        self.view.valor("Tickers sin sector en silver/empresas", claves_con_nulo(empresas, "Ticker", "Sector"))
+        self.view.esquema(precios)
+        self.view.filas(precios.orderBy("Ticker", "Fecha"), 5)
+        self.view.filas(empresas.select("Ticker", "Nombre", "Sector", "Sector_ES", "Industria", "Pais").orderBy("Ticker"), 5)
+        self.view.mensaje("Comentario: en silver/ibex Date pasa a Fecha, los precios y dividendos se redondean a "
+                          "4 decimales (se elimina el ruido de float32) y se descartan las sesiones incompletas "
+                          "o incoherentes y los duplicados. El sector de cada empresa no viene en el histórico: "
+                          "se descarga del objeto info de Yahoo y se guarda como dimensión aparte, en crudo "
+                          "(bronze/empresas) y corregida (silver/empresas, con el sector también en español).")

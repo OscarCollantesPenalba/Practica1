@@ -81,3 +81,8 @@ def perfil_sentimiento(df):
         "Duplicados por (Fecha, sector normalizado)": duplicados,
         "Filas por sector normalizado": por_sector,
     }
+
+
+def claves_con_nulo(df, clave, columna):
+    """Valores de 'clave' (por ejemplo Ticker) cuya 'columna' (por ejemplo Sector) es nula."""
+    return sorted(r[clave] for r in df.filter(F.col(columna).isNull()).select(clave).collect())

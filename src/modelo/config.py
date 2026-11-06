@@ -16,7 +16,10 @@ CSV_SENTIMIENTO = DATA_DIR / "sentimiento_ibex.csv"
 # Rutas con barras "/" (Spark las acepta también en Windows).
 BRONZE_IBEX = (LAKE_DIR / "bronze" / "ibex").as_posix()
 BRONZE_SENTIMIENTO = (LAKE_DIR / "bronze" / "sentimiento").as_posix()
+BRONZE_EMPRESAS = (LAKE_DIR / "bronze" / "empresas").as_posix()
 SILVER_SENTIMIENTO = (LAKE_DIR / "silver" / "sentimiento").as_posix()
+SILVER_IBEX = (LAKE_DIR / "silver" / "ibex").as_posix()
+SILVER_EMPRESAS = (LAKE_DIR / "silver" / "empresas").as_posix()
 
 # Periodo: últimos 2 años, con último día el 1 de octubre de 2026.
 # En yfinance el parámetro end es EXCLUSIVO, por eso se pone el día siguiente.
@@ -38,3 +41,20 @@ def hoy():
     """Fecha de hoy (YYYY-MM-DD). Usada como final EXCLUSIVO de la descarga: así se llega
     hasta la última sesión cerrada y no se guarda la sesión de hoy a medias."""
     return date.today().isoformat()
+
+
+# Sector (nombre de Yahoo, que es también el del CSV de sentimiento) -> nombre en español para el dashboard
+SECTORES_ES = {
+    "Basic Materials": "Materiales básicos",
+    "Communication Services": "Servicios de comunicación",
+    "Consumer Cyclical": "Consumo cíclico",
+    "Consumer Defensive": "Consumo defensivo",
+    "Crypto": "Criptomonedas",
+    "Energy": "Energía",
+    "Financial Services": "Servicios financieros",
+    "Healthcare": "Salud",
+    "Industrials": "Industriales",
+    "Real Estate": "Inmobiliario",
+    "Technology": "Tecnología",
+    "Utilities": "Servicios públicos",
+}
