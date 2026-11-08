@@ -1,5 +1,6 @@
 from src.modelo import config
-from src.modelo.calidad import claves_con_nulo, contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.calidad import claves_con_nulo, contar_nulos, integridad_estrella, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.exportacion import exportar_parquet_unico, tamano_kb
 from src.modelo.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
 from src.modelo.integracion import (con_motivo_precios, con_motivo_sentimiento, construir_dim_empresa,
                                     construir_dim_fecha, construir_hecho, precios_sin_sentimiento,
@@ -17,7 +18,7 @@ from src.modelo.yahoo_finance import (descargar_historico, descargar_ibex, desca
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
 
 
 class IbexController:
@@ -451,3 +452,31 @@ class IbexController:
                           "Así Power BI las usa directamente en lugar de recalcularlas, y quedan listas para "
                           "contrastar el sentimiento del experto con el retorno (reflexión del Ej7). Se guardan "
                           "reescribiendo la tabla con una versión nueva de Delta, así que el historial se conserva.")
+
+    def ej13(self):
+        # Ej13
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej13")
+        hecho = leer_delta(self.spark, config.GOLD_HECHO)
+        dim_empresa = leer_delta(self.spark, config.GOLD_DIM_EMPRESA)
+        dim_fecha = leer_delta(self.spark, config.GOLD_DIM_FECHA)
+        # Antes de exportar se comprueba que la estrella es consistente (todo debe ser 0)
+        for etiqueta, valor in integridad_estrella(hecho, dim_empresa, dim_fecha).items():
+            self.view.valor(etiqueta, valor)
+        tablas = [("hecho_cotizacion", hecho, ["Ticker", "Fecha"]),
+                  ("dim_empresa", dim_empresa, ["Ticker"]),
+                  ("dim_fecha", dim_fecha, ["Fecha"])]
+        for nombre, df, orden in tablas:
+            fichero = config.EXPORT_GOLD_DIR / f"{nombre}.parquet"
+            exportar_parquet_unico(df, fichero, orden)
+            exportado = self.spark.read.parquet(fichero.as_posix())
+            self.view.valor(f"{nombre}: filas en gold / exportadas / tamaño",
+                            f"{df.count()} / {exportado.count()} / {tamano_kb(fichero)} KB")
+        self.view.esquema(self.spark.read.parquet((config.EXPORT_GOLD_DIR / "hecho_cotizacion.parquet").as_posix()))
+        self.view.mensaje("Comentario: se exportan las tres tablas de la estrella, cada una como un único fichero "
+                          "Parquet limpio en data/export/gold: hecho_cotizacion.parquet, dim_empresa.parquet y "
+                          "dim_fecha.parquet. Van ordenadas por su clave, sin particionar (son tablas pequeñas) y con "
+                          "Snappy, y solo usan tipos simples (date, double, long, boolean y string) que Power BI "
+                          "lee sin conversiones. Las claves son Ticker y Fecha (tipo date, necesaria para la tabla de "
+                          "fechas de Power BI) y antes de exportar se ha comprobado que no hay claves huérfanas ni "
+                          "repetidas.")

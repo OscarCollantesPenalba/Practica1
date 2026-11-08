@@ -86,3 +86,23 @@ def perfil_sentimiento(df):
 def claves_con_nulo(df, clave, columna):
     """Valores de 'clave' (por ejemplo Ticker) cuya 'columna' (por ejemplo Sector) es nula."""
     return sorted(r[clave] for r in df.filter(F.col(columna).isNull()).select(clave).collect())
+
+
+def integridad_estrella(hecho, dim_empresa, dim_fecha):
+    """Ej13: comprueba que el modelo en estrella es consistente antes de exportarlo.
+
+    Para que Power BI cree relaciones limpias (varios a uno, sin filas en blanco) cada clave del hecho
+    debe existir en su dimensión y las claves de las dimensiones no pueden repetirse. Todo debe ser 0.
+    """
+    def duplicados(df, claves):
+        return df.count() - df.select(*claves).distinct().count()
+
+    return {
+        "Tickers del hecho sin fila en dim_empresa":
+            hecho.select("Ticker").distinct().join(dim_empresa.select("Ticker"), "Ticker", "left_anti").count(),
+        "Fechas del hecho sin fila en dim_fecha":
+            hecho.select("Fecha").distinct().join(dim_fecha.select("Fecha"), "Fecha", "left_anti").count(),
+        "Ticker repetido en dim_empresa": duplicados(dim_empresa, ["Ticker"]),
+        "Fecha repetida en dim_fecha": duplicados(dim_fecha, ["Fecha"]),
+        "(Ticker, Fecha) repetido en el hecho": duplicados(hecho, ["Ticker", "Fecha"]),
+    }

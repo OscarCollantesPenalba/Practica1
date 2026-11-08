@@ -10,6 +10,7 @@ DATA_DIR = BASE_DIR / "data"
 # proyecto tiene espacios o tildes y Hadoop/Delta dan problemas).
 LAKE_DIR = Path(os.environ.get("LAKE_DIR", DATA_DIR / "lake"))
 EXPORT_DIR = DATA_DIR / "export"
+EXPORT_GOLD_DIR = EXPORT_DIR / "gold"
 
 CSV_SENTIMIENTO = DATA_DIR / "sentimiento_ibex.csv"
 
