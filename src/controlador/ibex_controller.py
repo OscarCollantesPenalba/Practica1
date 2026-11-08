@@ -1,5 +1,6 @@
 from src.modelo import config
 from src.modelo.calidad import claves_con_nulo, contar_nulos, diferencia_filas, perfil_precios, perfil_sentimiento
+from src.modelo.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
 from src.modelo.integracion import (con_motivo_precios, con_motivo_sentimiento, construir_dim_empresa,
                                     construir_dim_fecha, construir_hecho, precios_sin_sentimiento,
                                     sectores_sin_empresas, sentimiento_sin_precios)
@@ -16,7 +17,7 @@ from src.modelo.yahoo_finance import (descargar_historico, descargar_ibex, desca
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
-EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11"]
+EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12"]
 
 
 class IbexController:
@@ -422,3 +423,31 @@ class IbexController:
                           "puede filtrarlas) y el sentimiento sin precios sigue en silver/sentimiento, fuera del hecho "
                           "porque este tiene granularidad empresa-día. No se rellenan los huecos arrastrando el último "
                           "valor, porque sería inventar la opinión del experto: lo correcto es pedir el CSV actualizado.")
+
+    def ej12(self):
+        # Ej12 (opcional)
+        # Herramienta IA usada: Claude
+        self.view.titulo("Ej12")
+        version_antes = version_actual(self.spark, config.GOLD_HECHO)
+        # Se materializa antes de escribir: se lee y se reescribe la misma tabla
+        con_indicadores = anadir_indicadores(leer_delta(self.spark, config.GOLD_HECHO)).cache()
+        con_indicadores.count()
+        escribir_delta(con_indicadores, config.GOLD_HECHO, "overwrite", overwrite_schema=True)
+        hecho = leer_delta(self.spark, config.GOLD_HECHO)
+        self.view.valor("Versión de hecho_cotizacion antes / después",
+                        f"{version_antes} / {version_actual(self.spark, config.GOLD_HECHO)}")
+        self.view.esquema(hecho)
+        self.view.valor("Nulos por columna calculada", {c: contar_nulos(hecho, c) for c in COLUMNAS_INDICADORES})
+        self.view.valor("Filas con Tiene_Sentimiento = false", hecho.filter("NOT Tiene_Sentimiento").count())
+        # Zona donde acaba el CSV del experto: se ve cómo cambian Sentimiento y Tiene_Sentimiento
+        muestra = (hecho.filter("Ticker = 'BBVA.MC' AND Fecha BETWEEN '2026-09-28' AND '2026-10-02'")
+                   .orderBy("Fecha")
+                   .select("Fecha", "Close", "Variacion_Diaria_Pct", "Rango_Intradia_Pct", "Media_Movil_20",
+                           "Sentimiento", "Sentimiento_Anterior", "Tiene_Sentimiento"))
+        self.view.filas(muestra, 5)
+        self.view.mensaje("Comentario: se añaden al hecho cinco columnas calculadas por empresa y en orden de "
+                          "fecha: variación diaria del cierre (%), rango intradía (% del cierre), media móvil de "
+                          "20 sesiones, sentimiento de la sesión anterior y un indicador de si hay sentimiento. "
+                          "Así Power BI las usa directamente en lugar de recalcularlas, y quedan listas para "
+                          "contrastar el sentimiento del experto con el retorno (reflexión del Ej7). Se guardan "
+                          "reescribiendo la tabla con una versión nueva de Delta, así que el historial se conserva.")
