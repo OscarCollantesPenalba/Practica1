@@ -12,7 +12,7 @@ LAKE_DIR = Path(os.environ.get("LAKE_DIR", DATA_DIR / "lake"))
 EXPORT_DIR = DATA_DIR / "export"
 EXPORT_GOLD_DIR = EXPORT_DIR / "gold"
 
-CSV_SENTIMIENTO = DATA_DIR / "sentimiento_ibex.csv"
+CSV_SENTIMIENTO = (DATA_DIR / "sentimiento_ibex.csv").as_posix()
 
 # Rutas con barras "/" (Spark las acepta también en Windows), agrupadas por capa del data lake.
 # --- bronze: copia fiel de cada fuente ---
@@ -44,7 +44,7 @@ TICKERS_IBEX = [
 ]
 
 
-# Usado en: Ej4, Ej9
+# Usado en: Ej4
 def hoy():
     """Fecha de hoy (YYYY-MM-DD). Usada como final EXCLUSIVO de la descarga: así se llega
     hasta la última sesión cerrada y no se guarda la sesión de hoy a medias."""

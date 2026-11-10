@@ -22,7 +22,6 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej13"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -33,13 +32,8 @@ class IbexController:
         self.view = IbexView()
 
     def run(self, ejercicios=None):
-        ejercicios = [e.lower() for e in (ejercicios or EJERCICIOS)]
-        desconocidos = [e for e in ejercicios if e not in EJERCICIOS]
-        if desconocidos:
-            print(f"Ejercicio(s) no disponible(s): {desconocidos}. Disponibles: {EJERCICIOS}")
-        else:
-            for nombre in ejercicios:
-                getattr(self, nombre)()
+        for nombre in (ejercicios or EJERCICIOS):
+            getattr(self, nombre.lower())()
         self.spark.stop()
 
 #========================================================================================

@@ -10,6 +10,8 @@ def construir_dim_empresa(empresas):
 # Usado en: Ej10
 def construir_dim_fecha(hecho):
     """Una fila por día con cotizaciones, con atributos para filtrar y agrupar en el dashboard."""
+    # Herramienta IA usada: Claude
+    
     return (hecho.select("Fecha").distinct()
             .withColumn("Anio", F.year("Fecha"))
             .withColumn("Trimestre", F.quarter("Fecha"))

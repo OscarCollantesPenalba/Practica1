@@ -40,7 +40,7 @@ def descargar_historico(spark, ticker, start, end):
     pdf["Ticker"] = ticker
     pdf = pdf.rename(columns={"Stock Splits": "Stock_Splits"})
     pdf = pdf[["Date", "Open", "High", "Low", "Close", "Volume", "Ticker", "Dividends", "Stock_Splits"]]
-    return spark.createDataFrame(pdf, schema=ESQUEMA_PRECIOS) # espero: Date: timestamp
+    return spark.createDataFrame(pdf, schema=ESQUEMA_PRECIOS) 
 
 # Usado en: Ej1b, Ej4
 def descargar_ibex(spark, tickers, start, end):
