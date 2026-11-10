@@ -58,6 +58,8 @@ def integridad_estrella(hecho, dim_empresa, dim_fecha):
     Para que Power BI cree relaciones limpias (varios a uno, sin filas en blanco) cada clave del hecho
     debe existir en su dimensión y las claves de las dimensiones no pueden repetirse. Todo debe ser 0.
     """
+    # Herramienta IA usada: Claude
+        
     return {
         "Tickers del hecho sin fila en dim_empresa":
             hecho.select("Ticker").distinct().join(dim_empresa.select("Ticker"), "Ticker", "left_anti").count(),

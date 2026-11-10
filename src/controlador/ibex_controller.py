@@ -1,5 +1,5 @@
 from src.modelo.comun import config
-from src.modelo.comun.calidad import (contar_duplicados, nulos_por_columna, integridad_estrella, perfil_precios, perfil_sentimiento)
+from src.modelo.comun.calidad import (nulos_por_columna, integridad_estrella, perfil_precios, perfil_sentimiento)
 from src.modelo.comun.spark_session import get_spark_session
 from src.modelo.io.parquet_io import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.io.delta_io import contar_filas_delta, escribir_delta, leer_delta, version_actual
@@ -15,14 +15,14 @@ from src.modelo.silver.precios import limpiar_precios
 from src.modelo.silver.empresas import limpiar_empresas
 from src.modelo.gold.hecho import construir_hecho
 from src.modelo.gold.dimensiones import construir_dim_empresa, construir_dim_fecha
-from src.modelo.gold.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
+from src.modelo.gold.indicadores import anadir_indicadores
 from src.modelo.gold.cruce import (precios_sin_sentimiento,sentimiento_sin_precios, resumen_por_sector)
-from src.modelo.gold.exportacion import exportar_parquet_unico, tamano_kb
+from src.modelo.gold.exportacion import exportar_parquet
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej11"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
+EJERCICIOS = ["ej13"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -352,6 +352,7 @@ class IbexController:
     def ej13(self):
         # Ej13
         # Herramienta IA usada: Claude
+            
         self.view.titulo("Ej13")
         hecho = leer_delta(self.spark, config.GOLD_HECHO)
         dim_empresa = leer_delta(self.spark, config.GOLD_DIM_EMPRESA)
@@ -363,16 +364,14 @@ class IbexController:
                   ("dim_empresa", dim_empresa, ["Ticker"]),
                   ("dim_fecha", dim_fecha, ["Fecha"])]
         for nombre, df, orden in tablas:
-            fichero = config.EXPORT_GOLD_DIR / f"{nombre}.parquet"
-            exportar_parquet_unico(df, fichero, orden)
-            exportado = self.spark.read.parquet(fichero.as_posix())
-            self.view.valor(f"{nombre}: filas en gold / exportadas / tamaño",
-                            f"{df.count()} / {exportado.count()} / {tamano_kb(fichero)} KB")
-        self.view.esquema(self.spark.read.parquet((config.EXPORT_GOLD_DIR / "hecho_cotizacion.parquet").as_posix()))
-        self.view.mensaje("Comentario: se exportan las tres tablas de la estrella, cada una como un único fichero "
-                          "Parquet limpio en data/export/gold: hecho_cotizacion.parquet, dim_empresa.parquet y "
-                          "dim_fecha.parquet. Van ordenadas por su clave, sin particionar (son tablas pequeñas) y con "
-                          "Snappy, y solo usan tipos simples (date, double, long, boolean y string) que Power BI "
-                          "lee sin conversiones. Las claves son Ticker y Fecha (tipo date, necesaria para la tabla de "
-                          "fechas de Power BI) y antes de exportar se ha comprobado que no hay claves huérfanas ni "
-                          "repetidas.")
+            ruta = (config.EXPORT_GOLD_DIR / nombre).as_posix()
+            exportar_parquet(df, ruta, orden)
+            self.view.valor(f"{nombre}: filas en gold / exportadas",
+                            f"{df.count()} / {self.spark.read.parquet(ruta).count()}")
+        self.view.esquema(self.spark.read.parquet((config.EXPORT_GOLD_DIR / "hecho_cotizacion").as_posix()))
+        self.view.mensaje("Comentario: se exportan las tres tablas de la estrella (hecho_cotizacion, dim_empresa "
+                          "y dim_fecha), cada una en su carpeta de data/export/gold con un único fichero Parquet. "
+                          "Van ordenadas por su clave, sin particionar (son tablas pequeñas) y con Snappy, y solo "
+                          "usan tipos simples (date, double, long y string) que Power BI lee sin conversiones. Las "
+                          "claves son Ticker y Fecha (tipo date, necesaria para la tabla de fechas de Power BI) y "
+                          "antes de exportar se ha comprobado que no hay claves huérfanas ni repetidas.")
