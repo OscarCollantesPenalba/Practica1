@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej1a","ej1b", "ej1c"]
+EJERCICIOS = ["ej2a", "ej2b", "ej2c"]
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -77,7 +77,6 @@ class IbexController:
 
     def ej2a(self):
         # Ej2a
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej2a")
         df = leer_csv_sentimiento(self.spark)
         self.view.esquema(df)
@@ -88,17 +87,14 @@ class IbexController:
 
     def ej2b(self):
         # Ej2b
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej2b")
         df = leer_csv_sentimiento(self.spark)
         self.view.valor("Filas leídas del CSV", df.count())
         escribir_parquet(df, config.BRONZE_SENTIMIENTO, "overwrite")
-        self.view.valor("Filas escritas en bronze/sentimiento",
-                        contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
+        self.view.valor("Filas escritas en bronze/sentimiento",contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
 
     def ej2c(self):
         # Ej2c (opcional)
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej2c")
         df = leer_csv_sentimiento(self.spark)
         antes = contar_filas(self.spark, config.BRONZE_SENTIMIENTO)

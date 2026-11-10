@@ -1,7 +1,3 @@
-"""Bronze - precios: descarga del histórico diario del IBEX-35 desde Yahoo Finance (yfinance).
-
-Usado en: Ej1a, Ej1b (descarga y bronze/ibex), Ej4 (datos nuevos hasta hoy para el MERGE).
-"""
 import yfinance as yf
 from pyspark.sql.types import (DateType, DoubleType, LongType, StringType,
                                StructField, StructType)
@@ -31,7 +27,6 @@ ESQUEMA_PRECIOS = StructType([
     StructField("Dividends", DoubleType(), False),
     StructField("Stock_Splits", DoubleType(), False),
 ])
-
 
 
 # Usado en: Ej1a, Ej1b, Ej4
