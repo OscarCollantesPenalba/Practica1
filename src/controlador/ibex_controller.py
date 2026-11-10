@@ -51,8 +51,8 @@ class IbexController:
     def ej1a(self):
         # Ej1a
         self.view.titulo("Ej1a")
-        # Una sola acción (BBVA) para comprobar la función; los nulos están definidos
-        # y justificados columna a columna en ESQUEMA_PRECIOS (yahoo_finance.py).
+        # Una sola acción (BBVA) para comprobar la función; los nulos están definidos 
+        # y justificados columna a columna en ESQUEMA_PRECIOS.
         df = descargar_historico(self.spark, "BBVA.MC", config.INICIO, config.FIN)
         self.view.esquema(df)
 

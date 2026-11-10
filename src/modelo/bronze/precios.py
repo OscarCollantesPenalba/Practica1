@@ -2,10 +2,6 @@
 
 Usado en: Ej1a, Ej1b (descarga y bronze/ibex), Ej4 (datos nuevos hasta hoy para el MERGE).
 """
-import time
-from functools import reduce
-
-import pandas as pd
 import yfinance as yf
 from pyspark.sql.types import (DateType, DoubleType, LongType, StringType,
                                StructField, StructType)

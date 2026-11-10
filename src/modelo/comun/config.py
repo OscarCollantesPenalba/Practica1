@@ -3,7 +3,7 @@ import os
 from datetime import date
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "data"
 
 # El lago se puede mover con la variable de entorno LAKE_DIR (útil si la ruta del
