@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 
+# Usado en: Ej13
 def exportar_parquet_unico(df, destino, ordenar_por):
     """Escribe el DataFrame como UN solo fichero Parquet limpio (destino = ruta del .parquet).
 
@@ -27,6 +28,7 @@ def exportar_parquet_unico(df, destino, ordenar_por):
     shutil.rmtree(temporal, ignore_errors=True)
 
 
+# Usado en: Ej13
 def tamano_kb(fichero):
     """Tamaño del fichero en KB."""
     return round(Path(fichero).stat().st_size / 1024, 1)

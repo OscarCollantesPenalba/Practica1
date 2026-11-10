@@ -5,7 +5,7 @@ import sys
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 
-from src.modelo.config import BASE_DIR
+from src.modelo.comun.config import BASE_DIR
 
 
 def get_spark_session(app_name="IBEX35"):

@@ -1,14 +1,19 @@
-"""Comprobaciones de calidad y comparación de DataFrames."""
+"""Comprobaciones de calidad y comparación de DataFrames.
+
+Usado en: Ej7 (perfiles de los datos), Ej8-Ej9 (conteos y diferencias), Ej10-Ej13 (integridad de la estrella).
+"""
 from functools import reduce
 
 from pyspark.sql import functions as F
 
 
+# Usado en: Ej5b, Ej12
 def contar_nulos(df, columna):
     """Número de filas en las que la columna es nula."""
     return df.filter(F.col(columna).isNull()).count()
 
 
+# Usado en: Ej5d, Ej6
 def diferencia_filas(df_a, df_b):
     """Filas que hay en df_a y no en df_b, y al revés (solo columnas comunes, contando duplicados).
     Devuelve (solo_en_a, solo_en_b)."""
@@ -17,6 +22,7 @@ def diferencia_filas(df_a, df_b):
     return a.exceptAll(b).count(), b.exceptAll(a).count()
 
 
+# Usado en: Ej7
 def perfil_precios(df):
     """Ej7: radiografía de los precios (bronze/ibex). Devuelve {etiqueta: valor}."""
     columnas_nulos = ["Open", "High", "Low", "Close", "Volume"]
@@ -47,6 +53,7 @@ def perfil_precios(df):
     }
 
 
+# Usado en: Ej7
 def perfil_sentimiento(df):
     """Ej7: radiografía del sentimiento crudo (todo texto). Devuelve {etiqueta: valor}.
     Usa try_cast: con el modo ANSI de Spark 4 un cast normal fallaría con valores mal formados."""
@@ -83,11 +90,13 @@ def perfil_sentimiento(df):
     }
 
 
+# Usado en: Ej9
 def claves_con_nulo(df, clave, columna):
     """Valores de 'clave' (por ejemplo Ticker) cuya 'columna' (por ejemplo Sector) es nula."""
     return sorted(r[clave] for r in df.filter(F.col(columna).isNull()).select(clave).collect())
 
 
+# Usado en: Ej13
 def integridad_estrella(hecho, dim_empresa, dim_fecha):
     """Ej13: comprueba que el modelo en estrella es consistente antes de exportarlo.
 

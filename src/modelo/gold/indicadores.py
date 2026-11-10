@@ -11,6 +11,7 @@ COLUMNAS_INDICADORES = ["Variacion_Diaria_Pct", "Rango_Intradia_Pct", "Media_Mov
                         "Sentimiento_Anterior", "Tiene_Sentimiento"]
 
 
+# Usado en: Ej12
 def anadir_indicadores(hecho):
     """Añade al hecho cinco columnas calculadas.
 

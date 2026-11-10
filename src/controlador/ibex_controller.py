@@ -1,20 +1,25 @@
-from src.modelo import config
-from src.modelo.calidad import claves_con_nulo, contar_nulos, integridad_estrella, diferencia_filas, perfil_precios, perfil_sentimiento
-from src.modelo.exportacion import exportar_parquet_unico, tamano_kb
-from src.modelo.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
-from src.modelo.integracion import (con_motivo_precios, con_motivo_sentimiento, construir_dim_empresa,
-                                    construir_dim_fecha, construir_hecho, precios_sin_sentimiento,
-                                    sectores_sin_empresas, sentimiento_sin_precios)
-from src.modelo.limpieza import limpiar_empresas, limpiar_precios, limpiar_sentimiento
-from src.modelo.delta_ops import (borrar_filas, con_close_mas5, contar_filas_delta, convertir_a_delta,
-                                  escribir_delta, ficheros_delta_log, historial, intentar_escribir_delta, leer_delta,
-                                  leer_delta_version, merge_insertar_nuevos, restaurar_version,
-                                  version_actual, version_de_operacion)
-from src.modelo.data_lake import contar_filas, escribir_parquet, leer_parquet
-from src.modelo.sentimiento import leer_csv_sentimiento
-from src.modelo.spark_session import get_spark_session
-from src.modelo.yahoo_finance import (descargar_historico, descargar_ibex, descargar_info_empresas,
-                                      explorar_yahoo)
+from src.modelo.comun import config
+from src.modelo.comun.calidad import (claves_con_nulo, contar_nulos, diferencia_filas, integridad_estrella,
+                                      perfil_precios, perfil_sentimiento)
+from src.modelo.comun.spark_session import get_spark_session
+from src.modelo.io.parquet_io import contar_filas, escribir_parquet, leer_parquet
+from src.modelo.io.delta_io import contar_filas_delta, escribir_delta, leer_delta, version_actual
+from src.modelo.bronze.precios import descargar_historico, descargar_ibex
+from src.modelo.bronze.sentimiento import leer_csv_sentimiento
+from src.modelo.bronze.empresas import descargar_info_empresas
+from src.modelo.bronze.exploracion_api import explorar_yahoo
+from src.modelo.bronze.delta_ops import (borrar_filas, con_close_mas5, convertir_a_delta, ficheros_delta_log,
+                                         historial, intentar_escribir_delta, leer_delta_version,
+                                         merge_insertar_nuevos, restaurar_version, version_de_operacion)
+from src.modelo.silver.sentimiento import limpiar_sentimiento
+from src.modelo.silver.precios import limpiar_precios
+from src.modelo.silver.empresas import limpiar_empresas
+from src.modelo.gold.hecho import construir_hecho
+from src.modelo.gold.dimensiones import construir_dim_empresa, construir_dim_fecha
+from src.modelo.gold.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
+from src.modelo.gold.cruce import (con_motivo_precios, con_motivo_sentimiento, precios_sin_sentimiento,
+                                   sectores_sin_empresas, sentimiento_sin_precios)
+from src.modelo.gold.exportacion import exportar_parquet_unico, tamano_kb
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.

@@ -14,13 +14,16 @@ EXPORT_GOLD_DIR = EXPORT_DIR / "gold"
 
 CSV_SENTIMIENTO = DATA_DIR / "sentimiento_ibex.csv"
 
-# Rutas con barras "/" (Spark las acepta también en Windows).
+# Rutas con barras "/" (Spark las acepta también en Windows), agrupadas por capa del data lake.
+# --- bronze: copia fiel de cada fuente ---
 BRONZE_IBEX = (LAKE_DIR / "bronze" / "ibex").as_posix()
 BRONZE_SENTIMIENTO = (LAKE_DIR / "bronze" / "sentimiento").as_posix()
 BRONZE_EMPRESAS = (LAKE_DIR / "bronze" / "empresas").as_posix()
-SILVER_SENTIMIENTO = (LAKE_DIR / "silver" / "sentimiento").as_posix()
+# --- silver: datos limpios y tipados ---
 SILVER_IBEX = (LAKE_DIR / "silver" / "ibex").as_posix()
+SILVER_SENTIMIENTO = (LAKE_DIR / "silver" / "sentimiento").as_posix()
 SILVER_EMPRESAS = (LAKE_DIR / "silver" / "empresas").as_posix()
+# --- gold: modelo en estrella (hecho + dimensiones) ---
 GOLD_HECHO = (LAKE_DIR / "gold" / "hecho_cotizacion").as_posix()
 GOLD_DIM_EMPRESA = (LAKE_DIR / "gold" / "dim_empresa").as_posix()
 GOLD_DIM_FECHA = (LAKE_DIR / "gold" / "dim_fecha").as_posix()
@@ -41,6 +44,7 @@ TICKERS_IBEX = [
 ]
 
 
+# Usado en: Ej9
 def hoy():
     """Fecha de hoy (YYYY-MM-DD). Usada como final EXCLUSIVO de la descarga: así se llega
     hasta la última sesión cerrada y no se guarda la sesión de hoy a medias."""
