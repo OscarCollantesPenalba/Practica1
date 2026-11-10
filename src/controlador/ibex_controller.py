@@ -1,5 +1,5 @@
 from src.modelo.comun import config
-from src.modelo.comun.calidad import (contar_nulos, integridad_estrella, perfil_precios, perfil_sentimiento)
+from src.modelo.comun.calidad import (contar_duplicados, nulos_por_columna, integridad_estrella, perfil_precios, perfil_sentimiento)
 from src.modelo.comun.spark_session import get_spark_session
 from src.modelo.io.parquet_io import contar_filas, escribir_parquet, leer_parquet
 from src.modelo.io.delta_io import contar_filas_delta, escribir_delta, leer_delta, version_actual
@@ -325,40 +325,29 @@ class IbexController:
         self.view.mensaje("Comentario: (a) las cotizaciones sin sentimiento son las posteriores al 30/09/2026, "
                           "último día del CSV del experto, mientras que los precios llegan hasta hoy. (b) El "
                           "sentimiento sin precios es el anterior al primer precio (el CSV empieza en 2021 y los "
-                          "precios en octubre de 2024), el del sector Crypto, que no tiene empresas en el IBEX, "
-                          "y los días en que el experto opina pero la bolsa no abrió. Solución: no se pierde nada. "
-                          "El left join del Ej10 conserva las cotizaciones sin sentimiento (queda nulo y se puede "
-                          "filtrar en el dashboard) y el sentimiento sin precios sigue en silver/sentimiento. No "
-                          "se rellenan los huecos arrastrando el último valor, porque sería inventar la opinión "
-                          "del experto.")
+                          "precios en octubre de 2024) y el del sector Crypto, que no tiene empresas en el IBEX. "
+                          "Solución: no se pierde nada. El left join del Ej10 conserva las cotizaciones sin "
+                          "sentimiento (queda nulo y se puede filtrar en el dashboard) y el sentimiento sin "
+                          "precios sigue en silver/sentimiento. No se rellenan los huecos arrastrando el último "
+                          "valor, porque sería inventar la opinión del experto.")
 
     def ej12(self):
         # Ej12 (opcional)
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej12")
-        version_antes = version_actual(self.spark, config.GOLD_HECHO)
-        # Se materializa antes de escribir: se lee y se reescribe la misma tabla
-        con_indicadores = anadir_indicadores(leer_delta(self.spark, config.GOLD_HECHO)).cache()
-        con_indicadores.count()
+        con_indicadores = anadir_indicadores(leer_delta(self.spark, config.GOLD_HECHO))
         escribir_delta(con_indicadores, config.GOLD_HECHO, "overwrite", overwrite_schema=True)
         hecho = leer_delta(self.spark, config.GOLD_HECHO)
-        self.view.valor("Versión de hecho_cotizacion antes / después",
-                        f"{version_antes} / {version_actual(self.spark, config.GOLD_HECHO)}")
         self.view.esquema(hecho)
-        self.view.valor("Nulos por columna calculada", {c: contar_nulos(hecho, c) for c in COLUMNAS_INDICADORES})
-        self.view.valor("Filas con Tiene_Sentimiento = false", hecho.filter("NOT Tiene_Sentimiento").count())
-        # Zona donde acaba el CSV del experto: se ve cómo cambian Sentimiento y Tiene_Sentimiento
-        muestra = (hecho.filter("Ticker = 'BBVA.MC' AND Fecha BETWEEN '2026-09-28' AND '2026-10-02'")
-                   .orderBy("Fecha")
-                   .select("Fecha", "Close", "Variacion_Diaria_Pct", "Rango_Intradia_Pct", "Media_Movil_20",
-                           "Sentimiento", "Sentimiento_Anterior", "Tiene_Sentimiento"))
+        self.view.valor("Nulos por columna", nulos_por_columna(hecho))
+        muestra = (hecho.filter("Ticker = 'BBVA.MC' AND Fecha >= '2026-11-01'").orderBy("Fecha")
+                   .select("Fecha", "Close", "Variacion_Diaria_Pct", "Rango_Intradia_Pct",
+                           "Variacion_Acumulada_Pct", "Media_Movil_20"))
         self.view.filas(muestra, 5)
-        self.view.mensaje("Comentario: se añaden al hecho cinco columnas calculadas por empresa y en orden de "
-                          "fecha: variación diaria del cierre (%), rango intradía (% del cierre), media móvil de "
-                          "20 sesiones, sentimiento de la sesión anterior y un indicador de si hay sentimiento. "
-                          "Así Power BI las usa directamente en lugar de recalcularlas, y quedan listas para "
-                          "contrastar el sentimiento del experto con el retorno (reflexión del Ej7). Se guardan "
-                          "reescribiendo la tabla con una versión nueva de Delta, así que el historial se conserva.")
+        self.view.mensaje("Comentario: se añaden al hecho cuatro columnas calculadas por empresa y en orden de "
+                          "fecha: variación diaria del cierre (%), rango intradía (% del cierre), variación "
+                          "acumulada desde la primera sesión (%) y media móvil de 20 sesiones. Así Power BI las "
+                          "usa directamente en lugar de recalcularlas. Se guardan reescribiendo la tabla con una "
+                          "versión nueva de Delta, así que el historial se conserva.")
 
     def ej13(self):
         # Ej13
