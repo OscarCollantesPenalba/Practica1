@@ -37,66 +37,24 @@ ESQUEMA_PRECIOS = StructType([
 ])
 
 
-def _a_float(valor):
-    return None if pd.isna(valor) else float(valor)
-
-
-def _a_int(valor):
-    return None if pd.isna(valor) else int(valor)
-
-
-def _descargar_pandas(ticker, start, end, reintentos=3, espera=2):
-    """Descarga con yfinance reintentando ante fallos temporales de red o de Yahoo."""
-    ultimo_error = None
-    for intento in range(1, reintentos + 1):
-        try:
-            pdf = yf.Ticker(ticker).history(start=start, end=end, interval="1d",
-                                            auto_adjust=False)
-            if pdf is not None and not pdf.empty:
-                return pdf
-        except Exception as error:  # red, límite de Yahoo, ticker inexistente...
-            ultimo_error = error
-        if intento < reintentos:
-            time.sleep(espera * intento)
-    detalle = f": {ultimo_error}" if ultimo_error else ""
-    raise ValueError(f"Sin datos de Yahoo Finance para {ticker}{detalle}")
-
 
 # Usado en: Ej1a, Ej1b, Ej4
 def descargar_historico(spark, ticker, start, end):
     """Ej1a: descarga el histórico diario de un ticker y lo devuelve como DataFrame de Spark."""
-    pdf = _descargar_pandas(ticker, start, end)
-    # La fecha viene en el índice de pandas; Spark no tiene índices, solo columnas.
-    pdf = pdf.reset_index()
-    pdf = pdf.rename(columns={pdf.columns[0]: "Date"})
-    pdf["Date"] = pd.to_datetime(pdf["Date"]).dt.date  # fecha local de la sesión (sin hora ni zona)
-
-    registros = [
-        (f["Date"], _a_float(f["Open"]), _a_float(f["High"]), _a_float(f["Low"]),
-         _a_float(f["Close"]), _a_int(f["Volume"]), ticker,
-         _a_float(f["Dividends"]), _a_float(f["Stock Splits"]))
-        for f in pdf.to_dict("records")
-    ]
-    return spark.createDataFrame(registros, ESQUEMA_PRECIOS)
-
+    pdf = yf.Ticker(ticker).history(start=start, end=end, interval="1d", auto_adjust=False)
+    if pdf.empty:
+        raise ValueError(f"Sin datos de Yahoo Finance para {ticker}")
+    pdf.reset_index(inplace=True)           # el índice Date pasa a ser una columna
+    pdf["Date"] = pdf["Date"].dt.date       # de fecha con hora y zona a solo fecha
+    pdf["Ticker"] = ticker
+    pdf = pdf.rename(columns={"Stock Splits": "Stock_Splits"})
+    pdf = pdf[["Date", "Open", "High", "Low", "Close", "Volume", "Ticker", "Dividends", "Stock_Splits"]]
+    return spark.createDataFrame(pdf, schema=ESQUEMA_PRECIOS) # espero: Date: timestamp
 
 # Usado en: Ej1b, Ej4
 def descargar_ibex(spark, tickers, start, end):
-    """Ej1b: descarga todos los tickers y los apila con union.
-
-    Devuelve (DataFrame, lista de tickers sin datos).
-    """
-    dataframes, fallidos = [], []
-    for ticker in tickers:
-        try:
-            dataframes.append(descargar_historico(spark, ticker, start, end))
-        except ValueError:
-            fallidos.append(ticker)
-    if not dataframes:
-        raise ValueError("No se pudo descargar ningún ticker (¿sin conexión a internet?).")
-    df = reduce(lambda a, b: a.unionByName(b), dataframes)
-    # Se materializa una sola vez: la unión de 35 DataFrames creados desde listas de Python es
-    # cara de recalcular, y operaciones como MERGE leen la fuente varias veces.
-    df.cache()
-    df.count()
-    return df, fallidos
+    """Ej1b: descarga todos los tickers y los apila con union."""
+    df = descargar_historico(spark, tickers[0], start, end)
+    for ticker in tickers[1:]:
+        df = df.union(descargar_historico(spark, ticker, start, end))
+    return df

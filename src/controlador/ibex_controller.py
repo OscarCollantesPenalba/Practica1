@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-
+EJERCICIOS = ["ej1a","ej1b", "ej1c"]
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -50,27 +50,20 @@ class IbexController:
 
     def ej1a(self):
         # Ej1a
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej1a")
         # Una sola acción (BBVA) para comprobar la función; los nulos están definidos
         # y justificados columna a columna en ESQUEMA_PRECIOS (yahoo_finance.py).
         df = descargar_historico(self.spark, "BBVA.MC", config.INICIO, config.FIN)
         self.view.esquema(df)
-        self.view.filas(df, 5)
 
     def ej1b(self):
         # Ej1b
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej1b")
-        df, fallidos = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.FIN)
+        df = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.FIN)
         escribir_parquet(df, config.BRONZE_IBEX, "overwrite")
-        self.view.valor("Filas escritas en bronze/ibex", contar_filas(self.spark, config.BRONZE_IBEX))
-        if fallidos:
-            self.view.valor("Tickers sin datos", fallidos)
 
     def ej1c(self):
-        # Ej1c (opcional)
-        # Herramienta IA usada: Claude
+        # Ej1c (opcional)   
         self.view.titulo("Ej1c")
         df = leer_parquet(self.spark, config.BRONZE_IBEX)
         self.view.esquema(df)

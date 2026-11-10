@@ -15,7 +15,7 @@ def leer_parquet(spark, ruta, columnas=None):
     return df.select(*columnas) if columnas else df
 
 
-# Usado en: Ej1b, Ej2b, Ej2c
+# Usado en: Ej2b, Ej2c
 def contar_filas(spark, ruta):
     """Número de filas de una carpeta Parquet (0 si todavía no existe)."""
     if not Path(ruta).exists():
