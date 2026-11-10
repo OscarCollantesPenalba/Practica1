@@ -8,7 +8,7 @@ from src.modelo.bronze.precios import descargar_historico, descargar_ibex
 from src.modelo.bronze.sentimiento import leer_csv_sentimiento
 from src.modelo.bronze.empresas import descargar_info_empresas
 from src.modelo.bronze.exploracion_api import explorar_yahoo
-from src.modelo.bronze.delta_ops import (borrar_filas, con_close_mas5, convertir_a_delta, ficheros_delta_log,
+from src.modelo.bronze.delta_ops import (borrar_filas, con_close_mas5, convertir_a_delta,
                                          historial, intentar_escribir_delta, leer_delta_version,
                                          merge_insertar_nuevos, restaurar_version, version_de_operacion)
 from src.modelo.silver.sentimiento import limpiar_sentimiento
@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7"]
+EJERCICIOS = ["ej4"]
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -119,34 +119,28 @@ class IbexController:
             h = historial(self.spark, ruta).select("version", "operation", "operationMetrics")
             self.view.filas(h, 5, False)
         self.view.mensaje("Comentario: ha aparecido la carpeta _delta_log con el commit de la versión 0 "
-                          "(00000000000000000000.json, operación CONVERT). Los ficheros Parquet de datos "
-                          "no se han tocado: solo se han registrado en el log. A partir de ahora cada "
-                          "cambio añadirá un JSON nuevo, y recorrerlos permite reconstruir el estado de "
-                          "la tabla o volver a una versión anterior.")
+                          "Los ficheros Parquet de datosno se han tocado: solo se han registrado en el "
+                          "log. A partir de ahora cada cambio añadirá un JSON nuevo, y recorrerlos permite"
+                          "reconstruir el estado de la tabla o volver a una versión anterior.")
 
     def ej4(self):
-        # Ej4   
-        # Herramienta IA usada: Claude
+        # Ej4
         self.view.titulo("Ej4")
         ruta = config.BRONZE_IBEX
         self.view.valor("Versión actual de bronze/ibex", version_actual(self.spark, ruta))
         self.view.valor("Filas actuales de bronze/ibex", contar_filas_delta(self.spark, ruta))
         # Se vuelve a descargar todo el periodo hasta hoy; MERGE decide qué entra
-        nuevos, fallidos = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.hoy())
-        if fallidos:
-            self.view.valor("Tickers sin datos", fallidos)
+        nuevos = descargar_ibex(self.spark, config.TICKERS_IBEX, config.INICIO, config.hoy())
         for ejecucion in (1, 2):
             antes = contar_filas_delta(self.spark, ruta)
-            merge_insertar_nuevos(self.spark, ruta, nuevos, ["Ticker", "Date"])
+            merge_insertar_nuevos(self.spark, ruta, nuevos)
             despues = contar_filas_delta(self.spark, ruta)
-            self.view.valor(f"MERGE {ejecucion}: filas antes / después / insertadas",
-                            f"{antes} / {despues} / {despues - antes}")
+            self.view.valor(f"MERGE {ejecucion}: filas antes / después / insertadas", f"{antes} / {despues} / {despues - antes}")
             self.view.valor(f"MERGE {ejecucion}: versión de la tabla", version_actual(self.spark, ruta))
-        self.view.mensaje("Comentario: MERGE compara cada fila descargada con la tabla por la clave "
-                          "(Ticker, Date) e inserta solo las que no existen (whenNotMatchedInsertAll). "
-                          "En la primera ejecución entran las sesiones posteriores al 1 de octubre; en la "
-                          "segunda todas las filas ya existen y no se inserta ninguna, así que la carga es "
-                          "idempotente (con append se duplicarían, como vimos en el Ej2c).")
+            self.view.mensaje("Comentario: MERGE compara cada fila descargada con la tabla por la clave "
+                          "(Ticker, Date) e inserta solo las que no existen. La primera vez entran los días "
+                          "nuevos; la segunda no hay nada que insertar, así que cargar dos veces no "
+                          "duplica datos (con append sí se duplicarían).")
 
     def ej5a(self):
         # Ej5a

@@ -33,16 +33,11 @@ def ficheros_delta_log(ruta):
 # ===================== Ej4: MERGE =====================
 
 # Usado en: Ej4
-def merge_insertar_nuevos(spark, ruta, nuevos, claves):
-    """Ej4: MERGE que inserta solo las filas de 'nuevos' cuya clave no existe ya en la tabla.
-
-    Las filas que ya existen se ignoran, así que la carga es idempotente: ejecutarla dos
-    veces no duplica datos (a diferencia de un append).
-    """
+def merge_insertar_nuevos(spark, ruta, nuevos):
+    """Ej4: MERGE que inserta solo las filas de 'nuevos' cuya clave (Ticker, Date) no existe en la tabla."""
     destino = DeltaTable.forPath(spark, ruta)
-    condicion = " AND ".join(f"d.{c} = n.{c}" for c in claves)
     (destino.alias("d")
-     .merge(nuevos.alias("n"), condicion)
+     .merge(nuevos.alias("n"), "d.Ticker = n.Ticker AND d.Date = n.Date")
      .whenNotMatchedInsertAll()
      .execute())
 

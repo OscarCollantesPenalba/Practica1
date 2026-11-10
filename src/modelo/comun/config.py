@@ -44,10 +44,12 @@ TICKERS_IBEX = [
 ]
 
 
-# Usado en: Ej9
+# Usado en: Ej4, Ej9
 def hoy():
     """Fecha de hoy (YYYY-MM-DD). Usada como final EXCLUSIVO de la descarga: así se llega
     hasta la última sesión cerrada y no se guarda la sesión de hoy a medias."""
+    # Herramienta IA usada: Claude
+    
     return date.today().isoformat()
 
 
