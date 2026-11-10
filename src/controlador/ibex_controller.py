@@ -16,14 +16,13 @@ from src.modelo.silver.empresas import limpiar_empresas
 from src.modelo.gold.hecho import construir_hecho
 from src.modelo.gold.dimensiones import construir_dim_empresa, construir_dim_fecha
 from src.modelo.gold.indicadores import COLUMNAS_INDICADORES, anadir_indicadores
-from src.modelo.gold.cruce import (con_motivo_precios, con_motivo_sentimiento, precios_sin_sentimiento,
-                                   sectores_sin_empresas, sentimiento_sin_precios)
+from src.modelo.gold.cruce import (precios_sin_sentimiento,sentimiento_sin_precios, resumen_por_sector)
 from src.modelo.gold.exportacion import exportar_parquet_unico, tamano_kb
 from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej10"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
+EJERCICIOS = ["ej11"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -306,32 +305,32 @@ class IbexController:
                           "no se pierde ninguna cotización, y si no hay sentimiento queda nulo.")
     def ej11(self):
         # Ej11 (opcional)
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej11")
         precios = leer_delta(self.spark, config.SILVER_IBEX)
         empresas = leer_delta(self.spark, config.SILVER_EMPRESAS)
         sentimiento = leer_delta(self.spark, config.SILVER_SENTIMIENTO)
-        # (a) precios que se quedan sin sentimiento
-        a = con_motivo_precios(precios_sin_sentimiento(precios, empresas, sentimiento), sentimiento)
-        self.view.valor("(a) Cotizaciones sin sentimiento", a.count())
+
+        self.view.seccion("(a) Cotizaciones sin sentimiento")
+        a = precios_sin_sentimiento(precios, empresas, sentimiento)
+        self.view.valor("Filas", a.count())
         self.view.filas(a.orderBy("Fecha", "Ticker"), 5)
-        self.view.filas(a.groupBy("Motivo").count(), 10, False)
-        # (b) sentimiento que se queda sin precios
-        b = con_motivo_sentimiento(sentimiento_sin_precios(precios, empresas, sentimiento), precios, empresas)
-        self.view.valor("(b) Filas de sentimiento sin cotizaciones", b.count())
+        self.view.filas(resumen_por_sector(a), 20, False)
+
+        self.view.seccion("(b) Sentimiento sin cotizaciones")
+        b = sentimiento_sin_precios(precios, empresas, sentimiento)
+        self.view.valor("Filas", b.count())
         self.view.filas(b.orderBy("Fecha", "Sector"), 5)
-        self.view.filas(b.groupBy("Motivo").count(), 10, False)
-        self.view.valor("Sectores con sentimiento y sin empresas en el IBEX", sectores_sin_empresas(sentimiento, empresas))
-        self.view.mensaje("Comentario: el anti-join muestra lo que no cruza. (a) Las cotizaciones sin sentimiento son "
-                          "sobre todo las posteriores al último dato del experto: el CSV termina el 30/09/2026 y los "
-                          "precios llegan hasta hoy. (b) El sentimiento sin precios es el anterior al primer precio "
-                          "(el CSV empieza en 2021 y los precios en octubre de 2024) y el de Crypto (no hay empresas "
-                          "del IBEX en ese sector); si hubiera días sin sesión (festivos) saldrían en su propio "
-                          "grupo. Solución: no se pierde nada; el "
-                          "left join del Ej10 conserva las cotizaciones sin sentimiento (queda nulo y el dashboard "
-                          "puede filtrarlas) y el sentimiento sin precios sigue en silver/sentimiento, fuera del hecho "
-                          "porque este tiene granularidad empresa-día. No se rellenan los huecos arrastrando el último "
-                          "valor, porque sería inventar la opinión del experto: lo correcto es pedir el CSV actualizado.")
+        self.view.filas(resumen_por_sector(b), 20, False)
+
+        self.view.mensaje("Comentario: (a) las cotizaciones sin sentimiento son las posteriores al 30/09/2026, "
+                          "último día del CSV del experto, mientras que los precios llegan hasta hoy. (b) El "
+                          "sentimiento sin precios es el anterior al primer precio (el CSV empieza en 2021 y los "
+                          "precios en octubre de 2024), el del sector Crypto, que no tiene empresas en el IBEX, "
+                          "y los días en que el experto opina pero la bolsa no abrió. Solución: no se pierde nada. "
+                          "El left join del Ej10 conserva las cotizaciones sin sentimiento (queda nulo y se puede "
+                          "filtrar en el dashboard) y el sentimiento sin precios sigue en silver/sentimiento. No "
+                          "se rellenan los huecos arrastrando el último valor, porque sería inventar la opinión "
+                          "del experto.")
 
     def ej12(self):
         # Ej12 (opcional)
