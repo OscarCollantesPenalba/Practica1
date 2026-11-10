@@ -149,9 +149,8 @@ class IbexController:
         ruta = config.BRONZE_IBEX
         df_nuevo = con_close_mas5(leer_delta(self.spark, ruta))
         self.view.valor("Versión / filas antes", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
-        aceptada, mensaje = intentar_escribir_delta(df_nuevo, ruta, "append")
-        self.view.valor("¿Delta acepta la escritura?", aceptada)
-        self.view.valor("Mensaje de Delta", mensaje)
+        error = intentar_escribir_delta(df_nuevo, ruta, "append")
+        self.view.valor("Error de Delta", error)
         self.view.valor("Versión / filas después", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
         self.view.mensaje("Comentario: Delta valida el esquema al escribir (schema enforcement): el "
                           "DataFrame trae una columna, Close_mas5, que la tabla no tiene, así que rechaza "

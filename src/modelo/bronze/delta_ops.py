@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from delta.tables import DeltaTable
 from pyspark.errors import AnalysisException
 from pyspark.sql import functions as F
@@ -42,16 +40,13 @@ def con_close_mas5(df):
 
 # Usado en: Ej5a, Ej5b
 def intentar_escribir_delta(df, ruta, modo="append", merge_schema=False):
-    """Como escribir_delta, pero si Delta rechaza la escritura (error de esquema) devuelve el
-    mensaje del error en lugar de romper el programa. Si la acepta, devuelve None."""
-    # Herramienta IA usada: Claude
-    
+    """Como escribir_delta, pero si Delta rechaza la escritura devuelve la primera línea del
+    error en lugar de romper el programa. Si la acepta, devuelve None."""
     try:
         escribir_delta(df, ruta, modo, merge_schema)
     except AnalysisException as error:
-        lineas = [l.strip() for l in str(error).splitlines() if l.strip()]
-        return False, (lineas[0] if lineas else type(error).__name__)
-    return True, ""
+        return str(error).strip().splitlines()[0]
+    return None
 
  
 # ===================== Ej5c: DELETE =====================
