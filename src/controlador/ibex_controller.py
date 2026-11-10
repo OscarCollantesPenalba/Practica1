@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej4"]
+EJERCICIOS = ["ej5a", "ej5b", "ej5c", "ej5d"]
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -148,97 +148,54 @@ class IbexController:
         self.view.titulo("Ej5a")
         ruta = config.BRONZE_IBEX
         df_nuevo = con_close_mas5(leer_delta(self.spark, ruta))
-        antes = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
+        self.view.valor("Versión / filas antes", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
         aceptada, mensaje = intentar_escribir_delta(df_nuevo, ruta, "append")
-        despues = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
         self.view.valor("¿Delta acepta la escritura?", aceptada)
-        if mensaje:
-            self.view.valor("Mensaje de Delta", mensaje)
-        self.view.valor("Versión / filas antes", f"{antes[0]} / {antes[1]}")
-        self.view.valor("Versión / filas después", f"{despues[0]} / {despues[1]}")
-        if aceptada:
-            self.view.mensaje("Comentario: Delta ha aceptado la escritura, algo que no se esperaba.")
-        else:
-            self.view.mensaje("Comentario: Delta valida el esquema al escribir (schema enforcement). El "
-                              "DataFrame trae una columna, Close_mas5, que la tabla no tiene, así que "
-                              "rechaza el append y la tabla queda intacta (misma versión y mismas filas). "
-                              "Protege la tabla de escrituras accidentales; si el cambio es intencionado "
-                              "hay que pedirlo expresamente con mergeSchema (Ej5b).")
+        self.view.valor("Mensaje de Delta", mensaje)
+        self.view.valor("Versión / filas después", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
+        self.view.mensaje("Comentario: Delta valida el esquema al escribir (schema enforcement): el "
+                          "DataFrame trae una columna, Close_mas5, que la tabla no tiene, así que rechaza "
+                          "el append y la tabla queda intacta (misma versión y mismas filas).")
 
     def ej5b(self):
         # Ej5b
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej5b")
         ruta = config.BRONZE_IBEX
         df_nuevo = con_close_mas5(leer_delta(self.spark, ruta))
-        antes = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
-        aceptada, mensaje = intentar_escribir_delta(df_nuevo, ruta, "append", True)
-        despues = (version_actual(self.spark, ruta), contar_filas_delta(self.spark, ruta))
-        self.view.valor("¿Delta acepta la escritura con mergeSchema?", aceptada)
-        if mensaje:
-            self.view.valor("Mensaje de Delta", mensaje)
-        self.view.valor("Versión / filas antes", f"{antes[0]} / {antes[1]}")
-        self.view.valor("Versión / filas después", f"{despues[0]} / {despues[1]}")
-        tabla = leer_delta(self.spark, ruta)
-        self.view.esquema(tabla)
-        if aceptada:
-            nulos = contar_nulos(tabla, "Close_mas5")
-            self.view.valor("Filas con Close_mas5 nulo (las antiguas)", nulos)
-            self.view.valor("Filas con Close_mas5 con valor (las nuevas)", despues[1] - nulos)
-            self.view.mensaje("Comentario: con mergeSchema=true Delta ya no rechaza la escritura: añade "
-                              "Close_mas5 al esquema de la tabla (evolución de esquema) y las filas antiguas, "
-                              "que no tienen ese dato, quedan con valor nulo. Como se ha escrito la tabla "
-                              "entera, cada fila existe ahora dos veces (una sin Close_mas5 y otra con él); "
-                              "el Ej6 lo deshará con RESTORE.")
-        else:
-            self.view.mensaje("Comentario: Delta sigue rechazando la escritura incluso con mergeSchema.")
-
+        self.view.valor("Versión / filas antes", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
+        error = intentar_escribir_delta(df_nuevo, ruta, "append", merge_schema=True)
+        self.view.valor("Error de Delta (None si la acepta)", error)
+        self.view.valor("Versión / filas después", f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)}")
+        self.view.esquema(leer_delta(self.spark, ruta))
+        self.view.mensaje("Comentario: con mergeSchema=true Delta acepta la escritura y añade Close_mas5 al esquema")
+        
     def ej5c(self):
         # Ej5c
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej5c")
         ruta = config.BRONZE_IBEX
         condicion = "Ticker = 'BBVA.MC'"
-        total_antes = contar_filas_delta(self.spark, ruta)
-        version_antes = version_actual(self.spark, ruta)
         self.view.valor("Filas de BBVA.MC antes del DELETE", contar_filas_delta(self.spark, ruta, condicion))
         self.view.filas(leer_delta(self.spark, ruta, condicion), 5)
         borrar_filas(self.spark, ruta, condicion)
         self.view.valor("Filas de BBVA.MC después del DELETE", contar_filas_delta(self.spark, ruta, condicion))
         self.view.filas(leer_delta(self.spark, ruta, condicion), 5)
-        self.view.valor("Filas totales antes / después", f"{total_antes} / {contar_filas_delta(self.spark, ruta)}")
-        self.view.valor("Versión antes / después", f"{version_antes} / {version_actual(self.spark, ruta)}")
-        self.view.mensaje("Comentario: DELETE borra solo las filas que cumplen la condición y deja el resto. "
-                          "No elimina los ficheros del disco: crea una versión nueva del log en la que los "
-                          "ficheros afectados dejan de formar parte de la tabla (siguen en disco hasta un "
-                          "VACUUM), por eso el time travel todavía puede recuperar esas filas.")
+        self.view.mensaje("Comentario: DELETE borra solo las filas que cumplen la condición y crea una "
+                          "versión nueva en el log. Los ficheros no se eliminan del disco hasta un VACUUM, "
+                          "por eso el time travel todavía puede recuperar esas filas.")
 
     def ej5d(self):
         # Ej5d
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej5d")
         ruta = config.BRONZE_IBEX
-        h = historial(self.spark, ruta).select("version", "timestamp", "operation",
-                                               "operationParameters", "operationMetrics")
-        self.view.filas(h, 10, False)
-        # La versión de antes del Ej5a es la que dejó el MERGE del Ej4 (el Ej5a no escribió nada)
-        version = version_de_operacion(self.spark, ruta, "MERGE")
-        if version is None:  # si el MERGE no insertó nada, el estado del Ej4 es el de la conversión
-            version = 0
-        antigua = leer_delta_version(self.spark, ruta, version)
+        self.view.filas(historial(self.spark, ruta).select("version", "operation"), 10, False)
+        antigua = leer_delta_version(self.spark, ruta, 1)
         actual = leer_delta(self.spark, ruta)
-        self.view.valor("Versión de antes del Ej5a (último MERGE)", version)
-        self.view.valor(f"versionAsOf {version}: filas / columnas", f"{antigua.count()} / {len(antigua.columns)}")
+        self.view.valor("versionAsOf 1: filas / columnas", f"{antigua.count()} / {len(antigua.columns)}")
         self.view.valor("Tabla actual: filas / columnas", f"{actual.count()} / {len(actual.columns)}")
-        solo_antigua, solo_actual = diferencia_filas(antigua, actual)
-        self.view.valor(f"Filas solo en la versión {version} / solo en la actual", f"{solo_antigua} / {solo_actual}")
-        self.view.valor("Versión actual tras leer con versionAsOf", version_actual(self.spark, ruta))
-        self.view.mensaje("Comentario: no está todo igual. La versión antigua conserva el estado del Ej4 (sin "
-                          "Close_mas5, sin duplicados y con las filas de BBVA), mientras que la tabla actual "
-                          "tiene una columna más, filas duplicadas por el Ej5b y no tiene BBVA por el Ej5c. "
-                          "versionAsOf solo lee: la tabla actual no cambia (la versión sigue siendo la misma); "
-                          "para dejarla como estaba hace falta RESTORE (Ej6).")
-
+        self.view.mensaje("Comentario: no está todo igual. La versión antigua es la del Ej4 (sin Close_mas5, "
+                          "sin duplicados y con BBVA); la actual tiene una columna más, filas duplicadas por "
+                          "el Ej5b y no tiene BBVA por el Ej5c. versionAsOf solo lee: la tabla actual no cambia")
+        
     def ej6(self):
         # Ej6
         # Herramienta IA usada: Claude

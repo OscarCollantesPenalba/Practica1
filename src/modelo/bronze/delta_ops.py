@@ -21,15 +21,6 @@ def historial(spark, ruta):
     return DeltaTable.forPath(spark, ruta).history()
 
 
-# Usado en: Ej3
-def ficheros_delta_log(ruta):
-    """Nombres de los ficheros que hay dentro de _delta_log (lista vacía si no existe)."""
-    # Herramienta IA usada: Claude
-     
-    log = Path(ruta) / "_delta_log"
-    return sorted(p.name for p in log.iterdir()) if log.is_dir() else []
-
-
 # ===================== Ej4: MERGE =====================
 
 # Usado en: Ej4
@@ -49,11 +40,12 @@ def con_close_mas5(df):
     """Ej5a: añade la columna Close_mas5 (Close + 5). Es una columna que la tabla NO tiene."""
     return df.withColumn("Close_mas5", F.col("Close") + 5)
 
-
 # Usado en: Ej5a, Ej5b
 def intentar_escribir_delta(df, ruta, modo="append", merge_schema=False):
-    """Como escribir_delta, pero si Delta rechaza la escritura (error de esquema) devuelve
-    (False, primera línea del error) en lugar de romper el programa. Si la acepta: (True, "")."""
+    """Como escribir_delta, pero si Delta rechaza la escritura (error de esquema) devuelve el
+    mensaje del error en lugar de romper el programa. Si la acepta, devuelve None."""
+    # Herramienta IA usada: Claude
+    
     try:
         escribir_delta(df, ruta, modo, merge_schema)
     except AnalysisException as error:
@@ -61,7 +53,7 @@ def intentar_escribir_delta(df, ruta, modo="append", merge_schema=False):
         return False, (lineas[0] if lineas else type(error).__name__)
     return True, ""
 
-
+ 
 # ===================== Ej5c: DELETE =====================
 
 # Usado en: Ej5c
