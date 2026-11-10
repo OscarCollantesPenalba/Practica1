@@ -241,11 +241,9 @@ class IbexController:
         self.view.valor("Filas de bronze/sentimiento", contar_filas_delta(self.spark, config.BRONZE_SENTIMIENTO))
         self.view.valor("Filas de silver/sentimiento", contar_filas_delta(self.spark, config.SILVER_SENTIMIENTO))
         self.view.filas(plata.groupBy("Sector").count().orderBy("Sector"), 20, False)
-        self.view.mensaje("Comentario: Fecha pasa de texto a date y Sentimiento de texto a double (cambiando la "
-                          "coma decimal por punto por si llegara así). Sector se normaliza (sin espacios y con "
-                          "mayúscula inicial) porque llegaba escrito de muchas formas, y así coincide con el "
-                          "formato de Yahoo para cruzarlo con el sector de cada empresa. Se quitan nulos y "
-                          "duplicados por (Fecha, Sector).")
+        self.view.mensaje("Comentario: Fecha pasa a date, Sentimiento a double y Sector se normaliza "
+                          "(espacios y mayúscula inicial) para cruzarlo con el sector de Yahoo. "
+                          "Se quitan nulos y duplicados por (Fecha, Sector).")
 
     def ej9(self):
         # Ej9
@@ -267,11 +265,10 @@ class IbexController:
         self.view.esquema(empresas)
         self.view.filas(empresas.select("Ticker", "Nombre", "Sector", "Sector_ES", "Industria", "Pais").orderBy("Ticker"), 5)
         self.view.valor("Filas de bronze/ibex / silver/ibex", f"{precios_bronce.count()} / {precios.count()}")
-        self.view.mensaje("Comentario: en silver/ibex Date pasa a Fecha, los precios y dividendos se redondean a "
-                          "4 decimales (se elimina el ruido de float32) y se descartan las sesiones incompletas "
-                          "o incoherentes y los duplicados. El sector de cada empresa no viene en el histórico: "
-                          "se descarga del objeto info de Yahoo y se guarda como dimensión aparte, en crudo "
-                          "(bronze/empresas) y corregida (silver/empresas, con el sector también en español).")
+        self.view.mensaje("Comentario: en silver/ibex se renombra Date a Fecha, se redondean los precios a 4 "
+                          "decimales y se descartan sesiones incoherentes y duplicados. El sector viene del "
+                          "objeto info de Yahoo: bronze/empresas lo guarda en crudo y silver/empresas lo limpia "
+                          "y añade el sector en español.")
 
     def ej10(self):
         # Ej10
@@ -292,11 +289,10 @@ class IbexController:
                         f"{contar_filas_delta(self.spark, config.GOLD_DIM_EMPRESA)} / {contar_filas_delta(self.spark, config.GOLD_DIM_FECHA)}")
         self.view.esquema(hecho)
         self.view.filas(hecho.orderBy("Ticker", "Fecha"), 5)
-        self.view.mensaje("Comentario: modelo en estrella. El hecho (hecho_cotizacion) tiene una fila por "
-                          "empresa y día con las medidas (precios, volumen, sentimiento); las dimensiones "
-                          "dim_empresa (Ticker, sector, industria...) y dim_fecha (año, trimestre, mes, "
-                          "semana) aportan los atributos para filtrar y agrupar. El cruce es un left join: "
-                          "no se pierde ninguna cotización, y si no hay sentimiento queda nulo.")
+        self.view.mensaje("Comentario: modelo en estrella. El hecho tiene una fila por empresa y día; "
+                          "dim_empresa y dim_fecha aportan los atributos para filtrar y agrupar. "
+                          "El left join conserva todas las cotizaciones (sin sentimiento queda nulo).")
+        
     def ej11(self):
         # Ej11 (opcional)
         self.view.titulo("Ej11")
@@ -315,15 +311,11 @@ class IbexController:
         self.view.valor("Filas", b.count())
         self.view.filas(b.orderBy("Fecha", "Sector"), 5)
         self.view.filas(resumen_por_sector(b), 20, False)
-
-        self.view.mensaje("Comentario: (a) las cotizaciones sin sentimiento son las posteriores al 30/09/2026, "
-                          "último día del CSV del experto, mientras que los precios llegan hasta hoy. (b) El "
-                          "sentimiento sin precios es el anterior al primer precio (el CSV empieza en 2021 y los "
-                          "precios en octubre de 2024) y el del sector Crypto, que no tiene empresas en el IBEX. "
-                          "Solución: no se pierde nada. El left join del Ej10 conserva las cotizaciones sin "
-                          "sentimiento (queda nulo y se puede filtrar en el dashboard) y el sentimiento sin "
-                          "precios sigue en silver/sentimiento. No se rellenan los huecos arrastrando el último "
-                          "valor, porque sería inventar la opinión del experto.")
+        self.view.mensaje("Comentario: (a) las cotizaciones sin sentimiento son posteriores al 30/09/2026, "
+                          "fin del CSV. (b) El sentimiento sin precios es anterior a octubre de 2024 o del "
+                          "sector Crypto, que no tiene empresas en el IBEX. Solución: no se pierde nada, el "
+                          "left join del Ej10 deja el sentimiento nulo y no se rellenan los huecos para no "
+                          "inventar la opinión del experto.")
 
     def ej12(self):
         # Ej12 (opcional)
@@ -337,11 +329,9 @@ class IbexController:
                    .select("Fecha", "Close", "Variacion_Diaria_Pct", "Rango_Intradia_Pct",
                            "Variacion_Acumulada_Pct", "Media_Movil_20"))
         self.view.filas(muestra, 5)
-        self.view.mensaje("Comentario: se añaden al hecho cuatro columnas calculadas por empresa y en orden de "
-                          "fecha: variación diaria del cierre (%), rango intradía (% del cierre), variación "
-                          "acumulada desde la primera sesión (%) y media móvil de 20 sesiones. Así Power BI las "
-                          "usa directamente en lugar de recalcularlas. Se guardan reescribiendo la tabla con una "
-                          "versión nueva de Delta, así que el historial se conserva.")
+        self.view.mensaje("Comentario: se añaden al hecho, por empresa y en orden de fecha, la variación "
+                          "diaria, el rango intradía, la variación acumulada y la media móvil de 20 sesiones. "
+                          "Se guarda como una versión nueva de Delta.")
 
     def ej13(self):
         # Ej13
@@ -363,9 +353,6 @@ class IbexController:
             self.view.valor(f"{nombre}: filas en gold / exportadas",
                             f"{df.count()} / {self.spark.read.parquet(ruta).count()}")
         self.view.esquema(self.spark.read.parquet((config.EXPORT_GOLD_DIR / "hecho_cotizacion").as_posix()))
-        self.view.mensaje("Comentario: se exportan las tres tablas de la estrella (hecho_cotizacion, dim_empresa "
-                          "y dim_fecha), cada una en su carpeta de data/export/gold con un único fichero Parquet. "
-                          "Van ordenadas por su clave, sin particionar (son tablas pequeñas) y con Snappy, y solo "
-                          "usan tipos simples (date, double, long y string) que Power BI lee sin conversiones. Las "
-                          "claves son Ticker y Fecha (tipo date, necesaria para la tabla de fechas de Power BI) y "
-                          "antes de exportar se ha comprobado que no hay claves huérfanas ni repetidas.")
+        self.view.mensaje("Comentario: se exportan las tres tablas de la estrella a data/export/gold, un único "
+                          "fichero Parquet por tabla, ordenado por su clave y con tipos simples que Power BI "
+                          "lee sin conversiones. Antes se comprueba que no hay claves huérfanas ni repetidas.")
