@@ -1,10 +1,6 @@
-"""Bronze - exploración de la API de Yahoo: qué datos ofrece además del histórico de precios.
-
-Usado en: Ej7.
-"""
 import yfinance as yf
 
-# Ej7 - Campos de interés del objeto info de Yahoo (descriptivos, fundamentales y de analistas)
+# Campos de interés del objeto info de Yahoo (descriptivos, fundamentales y de analistas)
 CAMPOS_INFO = [
     "longName", "sector", "industry", "country", "currency", "marketCap", "beta",
     "trailingPE", "forwardPE", "dividendYield", "payoutRatio", "averageVolume",
@@ -13,41 +9,39 @@ CAMPOS_INFO = [
 ]
 
 
-def _resumir(valor):
-    """Texto corto que describe lo que ha devuelto Yahoo (tabla, diccionario u otro)."""
-    if hasattr(valor, "shape"):
-        columnas = list(getattr(valor, "columns", []))[:8]
-        return f"{valor.shape[0]} filas" + (f", columnas: {columnas}" if columnas else "")
-    if isinstance(valor, dict):
-        return f"{len(valor)} claves: {list(valor)[:8]}"
-    return str(valor)[:120]
+# Usado en: Ej7
+def info_yahoo(ticker):
+    """Objeto info de un ticker: el total de campos que trae y el valor de los de interés."""
+    try:
+        info = yf.Ticker(ticker).info
+    except Exception:
+        info = {}
+    resultado = {"Total de campos en info": len(info)}
+    for campo in CAMPOS_INFO:
+        resultado[campo] = info.get(campo)
+    return resultado
 
 
 # Usado en: Ej7
-def explorar_yahoo(ticker, indice="^IBEX"):
-    """Ej7: qué datos ofrece Yahoo además del histórico de precios.
-
-    Devuelve (nº de campos de info, {campo: valor} de los campos de interés,
-    [(fuente, descripción o motivo de no disponible)]). Nunca lanza: cada fuente falla por separado.
-    """
+def tablas_yahoo(ticker, indice="^IBEX"):
+    """Otras fuentes de Yahoo: {nombre: descripción} (filas y columnas, o claves si es un diccionario).
+    Si una fuente falla se indica y se sigue con la siguiente."""
     t = yf.Ticker(ticker)
-    try:
-        info = t.info or {}
-    except Exception:
-        info = {}
-    seleccion = {campo: info.get(campo) for campo in CAMPOS_INFO}
     fuentes = {
         "recommendations (votos de analistas por mes)": lambda: t.recommendations,
         "upgrades_downgrades (cambios de recomendación)": lambda: t.upgrades_downgrades,
         "analyst_price_targets (precio objetivo)": lambda: t.analyst_price_targets,
         "calendar (próximos resultados y dividendos)": lambda: t.calendar,
-        f"índice {indice} (histórico, 1 mes)": lambda: yf.Ticker(indice).history(period="1mo", interval="1d"),
+        f"índice {indice} (histórico, 1 mes)": lambda: yf.Ticker(indice).history(period="1mo"),
     }
-    resultado = []
+    resultado = {}
     for nombre, obtener in fuentes.items():
         try:
-            resultado.append((nombre, _resumir(obtener())))
-        except Exception as error:
-            lineas = str(error).splitlines()
-            resultado.append((nombre, "no disponible: " + (lineas[0][:100] if lineas else type(error).__name__)))
-    return len(info), seleccion, resultado
+            dato = obtener()
+            if isinstance(dato, dict):
+                resultado[nombre] = f"{len(dato)} claves: {list(dato)}"
+            else:
+                resultado[nombre] = f"{len(dato)} filas, columnas: {list(dato.columns)}"
+        except Exception:
+            resultado[nombre] = "no disponible"
+    return resultado

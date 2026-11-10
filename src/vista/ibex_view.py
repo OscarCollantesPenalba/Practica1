@@ -17,4 +17,4 @@ class IbexView:
         print(texto)
 
     def seccion(self, texto):
-        print(f"--- {texto} ---")
+        print(f"----- {texto} -----")

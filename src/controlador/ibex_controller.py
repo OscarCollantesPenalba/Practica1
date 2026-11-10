@@ -1,5 +1,5 @@
 from src.modelo.comun import config
-from src.modelo.comun.calidad import (claves_con_nulo, contar_nulos, diferencia_filas, integridad_estrella,
+from src.modelo.comun.calidad import (claves_con_nulo, contar_nulos, integridad_estrella,
                                       perfil_precios, perfil_sentimiento)
 from src.modelo.comun.spark_session import get_spark_session
 from src.modelo.io.parquet_io import contar_filas, escribir_parquet, leer_parquet
@@ -7,7 +7,7 @@ from src.modelo.io.delta_io import contar_filas_delta, escribir_delta, leer_delt
 from src.modelo.bronze.precios import descargar_historico, descargar_ibex
 from src.modelo.bronze.sentimiento import leer_csv_sentimiento
 from src.modelo.bronze.empresas import descargar_info_empresas
-from src.modelo.bronze.exploracion_api import explorar_yahoo
+from src.modelo.bronze.exploracion_api import tablas_yahoo, info_yahoo
 from src.modelo.bronze.delta_ops import (borrar_filas, con_close_mas5, convertir_a_delta,
                                          historial, intentar_escribir_delta, leer_delta_version,
                                          merge_insertar_nuevos, restaurar_version, version_de_operacion)
@@ -213,21 +213,28 @@ class IbexController:
 
     def ej7(self):
         # Ej7
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej7")
-        self.view.seccion("Perfil de bronze/ibex (precios)")
-        for etiqueta, valor in perfil_precios(leer_delta(self.spark, config.BRONZE_IBEX)).items():
+        precios = leer_delta(self.spark, config.BRONZE_IBEX)
+        sentimiento = leer_delta(self.spark, config.BRONZE_SENTIMIENTO)
+
+        self.view.seccion("Precios (bronze/ibex)")
+        self.view.esquema(precios)
+        self.view.filas(precios, 5)
+        for etiqueta, valor in perfil_precios(precios).items():
             self.view.valor(etiqueta, valor)
-        self.view.seccion("Perfil de bronze/sentimiento (CSV del experto)")
-        for etiqueta, valor in perfil_sentimiento(leer_delta(self.spark, config.BRONZE_SENTIMIENTO)).items():
+
+        self.view.seccion("Sentimiento (bronze/sentimiento)")
+        self.view.esquema(sentimiento)
+        self.view.filas(sentimiento, 5)
+        for etiqueta, valor in perfil_sentimiento(sentimiento).items():
             self.view.valor(etiqueta, valor)
+        self.view.filas(sentimiento.groupBy("Sector").count().orderBy("Sector"), 40, False)
+
         self.view.seccion("Datos que ofrece Yahoo Finance (BBVA.MC)")
-        n_campos, seleccion, fuentes = explorar_yahoo("BBVA.MC")
-        self.view.valor("Campos en el objeto info", n_campos)
-        for campo, valor in seleccion.items():
-            self.view.valor(f"  info.{campo}", valor)
-        for fuente, detalle in fuentes:
-            self.view.valor(f"  {fuente}", detalle)
+        for campo, valor in info_yahoo("BBVA.MC").items():
+            self.view.valor(f"  {campo}", valor)
+        for nombre, descripcion in tablas_yahoo("BBVA.MC").items():
+            self.view.valor(f"  {nombre}", descripcion)
         self.view.mensaje("Comentario: la reflexión sobre cómo incorporar la información del experto con "
                           "estos datos está en el PDF.")
 
