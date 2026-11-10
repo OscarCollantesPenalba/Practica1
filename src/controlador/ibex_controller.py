@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej2a", "ej2b", "ej2c"]
+EJERCICIOS = ["ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7"]
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -82,8 +82,7 @@ class IbexController:
         self.view.esquema(df)
         self.view.filas(df, 5)
         self.view.mensaje("Comentario: todas las columnas llegan como string porque un CSV es texto "
-                          "plano y no guarda tipos; Spark no los infiere salvo que se le pida "
-                          "(inferSchema). Fecha y Sentimiento habrá que convertirlos en silver.")
+                          "plano y no guarda tipos.")
 
     def ej2b(self):
         # Ej2b
@@ -97,18 +96,15 @@ class IbexController:
         # Ej2c (opcional)
         self.view.titulo("Ej2c")
         df = leer_csv_sentimiento(self.spark)
-        antes = contar_filas(self.spark, config.BRONZE_SENTIMIENTO)
+        self.view.valor("Filas antes del append", contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
         escribir_parquet(df, config.BRONZE_SENTIMIENTO, "append")
-        despues = contar_filas(self.spark, config.BRONZE_SENTIMIENTO)
-        self.view.valor("Filas antes del append", antes)
-        self.view.valor("Filas después del append", despues)
-        self.view.mensaje("Comentario: Parquet es inmutable, así que append solo escribe ficheros nuevos "
+        self.view.valor("Filas después del append", contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
+        self.view.mensaje("Comentario: Parquet es inmutable, así que append solo añade ficheros nuevos "
                           "sin comprobar nada: cada fila del CSV queda duplicada. No hay clave ni "
                           "transacciones, por eso la carga no es idempotente (Delta lo resuelve con MERGE).")
-        # Se deshace el duplicado para que el resto de ejercicios parta de bronze correcta
+        
+        # Se deshace el duplicado para que el Ej3 parta de un bronze correcto
         escribir_parquet(df, config.BRONZE_SENTIMIENTO, "overwrite")
-        self.view.valor("Filas tras restaurar con overwrite",
-                        contar_filas(self.spark, config.BRONZE_SENTIMIENTO))
 
 #========================================================================================
 #===================CLASE 2 - Delta Lake sobre bronze ===================================
@@ -116,26 +112,20 @@ class IbexController:
 
     def ej3(self):
         # Ej3
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej3")
-        for nombre, ruta in [("bronze/ibex", config.BRONZE_IBEX),
-                             ("bronze/sentimiento", config.BRONZE_SENTIMIENTO)]:
+        for nombre, ruta in [("bronze/ibex", config.BRONZE_IBEX), ("bronze/sentimiento", config.BRONZE_SENTIMIENTO)]:
             convertir_a_delta(self.spark, ruta)
             self.view.valor("Tabla Delta", nombre)
-            h = historial(self.spark, ruta).select("version", "timestamp", "operation",
-                                                   "operationParameters", "operationMetrics")
+            h = historial(self.spark, ruta).select("version", "operation", "operationMetrics")
             self.view.filas(h, 5, False)
-            self.view.valor("Ficheros en _delta_log", ficheros_delta_log(ruta))
         self.view.mensaje("Comentario: ha aparecido la carpeta _delta_log con el commit de la versión 0 "
-                          "(00000000000000000000.json, operación CONVERT), un checkpoint en Parquet (resumen "
-                          "del estado de la tabla para no releer todos los JSON), el puntero _last_checkpoint, "
-                          "la carpeta _staged_commits (reservada para commits en preparación) y ficheros .crc "
-                          "de checksum de Hadoop. Los ficheros Parquet de datos no se han tocado: solo se han "
-                          "registrado en el log. A partir de ahora cada cambio añadirá un JSON nuevo al log, "
-                          "y recorrerlo permite reconstruir el estado de la tabla o volver a una versión anterior.")
+                          "(00000000000000000000.json, operación CONVERT). Los ficheros Parquet de datos "
+                          "no se han tocado: solo se han registrado en el log. A partir de ahora cada "
+                          "cambio añadirá un JSON nuevo, y recorrerlos permite reconstruir el estado de "
+                          "la tabla o volver a una versión anterior.")
 
     def ej4(self):
-        # Ej4
+        # Ej4   
         # Herramienta IA usada: Claude
         self.view.titulo("Ej4")
         ruta = config.BRONZE_IBEX

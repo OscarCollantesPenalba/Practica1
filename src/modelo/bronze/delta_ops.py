@@ -1,9 +1,3 @@
-"""Operaciones de Delta Lake sobre bronze (Clase 2, Ej3-Ej6).
-
-Cada sección indica los ejercicios que la usan. La lectura y escritura básica (leer_delta,
-escribir_delta, contar_filas_delta, version_actual) está en src/modelo/io/delta_io.py porque
-la usan también silver y gold.
-"""
 from pathlib import Path
 
 from delta.tables import DeltaTable
@@ -17,11 +11,7 @@ from src.modelo.io.delta_io import escribir_delta
 
 # Usado en: Ej3
 def convertir_a_delta(spark, ruta):
-    """Ej3: convierte una carpeta Parquet en tabla Delta SIN reescribir los datos.
-
-    Solo añade la carpeta _delta_log con el commit 0 (operación de metadatos). Los
-    backticks en la ruta son obligatorios. Si la carpeta ya es Delta, no hace nada.
-    """
+    """Ej3: convierte una carpeta Parquet en tabla Delta SIN reescribir los datos."""
     return DeltaTable.convertToDelta(spark, f"parquet.`{ruta}`")
 
 
@@ -34,6 +24,8 @@ def historial(spark, ruta):
 # Usado en: Ej3
 def ficheros_delta_log(ruta):
     """Nombres de los ficheros que hay dentro de _delta_log (lista vacía si no existe)."""
+    # Herramienta IA usada: Claude
+     
     log = Path(ruta) / "_delta_log"
     return sorted(p.name for p in log.iterdir()) if log.is_dir() else []
 
