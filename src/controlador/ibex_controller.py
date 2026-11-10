@@ -23,7 +23,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej9"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
+EJERCICIOS = ["ej10"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -273,6 +273,7 @@ class IbexController:
         self.view.seccion("silver/empresas")
         self.view.esquema(empresas)
         self.view.filas(empresas.select("Ticker", "Nombre", "Sector", "Sector_ES", "Industria", "Pais").orderBy("Ticker"), 5)
+        self.view.valor("Filas de bronze/ibex / silver/ibex", f"{precios_bronce.count()} / {precios.count()}")
         self.view.mensaje("Comentario: en silver/ibex Date pasa a Fecha, los precios y dividendos se redondean a "
                           "4 decimales (se elimina el ruido de float32) y se descartan las sesiones incompletas "
                           "o incoherentes y los duplicados. El sector de cada empresa no viene en el histórico: "
@@ -281,31 +282,28 @@ class IbexController:
 
     def ej10(self):
         # Ej10
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej10")
         precios = leer_delta(self.spark, config.SILVER_IBEX)
         empresas = leer_delta(self.spark, config.SILVER_EMPRESAS)
         sentimiento = leer_delta(self.spark, config.SILVER_SENTIMIENTO)
-        hecho = construir_hecho(precios, empresas, sentimiento)
-        escribir_delta(hecho, config.GOLD_HECHO, "overwrite", overwrite_schema=True)
+        # Hecho: precios + sector de la empresa + sentimiento de ese sector y día
+        escribir_delta(construir_hecho(precios, empresas, sentimiento), config.GOLD_HECHO, "overwrite", overwrite_schema=True)
         hecho = leer_delta(self.spark, config.GOLD_HECHO)
+        # Dimensiones: empresa y fecha (calendario de los días con cotización)
         escribir_delta(construir_dim_empresa(empresas), config.GOLD_DIM_EMPRESA, "overwrite", overwrite_schema=True)
         escribir_delta(construir_dim_fecha(hecho), config.GOLD_DIM_FECHA, "overwrite", overwrite_schema=True)
-        filas_hecho = hecho.count()
-        con_sentimiento = hecho.filter("Sentimiento is not null").count()
-        self.view.valor("Filas de silver/ibex / hecho_cotizacion", f"{precios.count()} / {filas_hecho}")
-        self.view.valor("Filas del hecho con sentimiento / sin sentimiento",
-                        f"{con_sentimiento} / {filas_hecho - con_sentimiento}")
-        self.view.valor("Filas de dim_empresa", contar_filas_delta(self.spark, config.GOLD_DIM_EMPRESA))
-        self.view.valor("Filas de dim_fecha", contar_filas_delta(self.spark, config.GOLD_DIM_FECHA))
+
+        self.view.valor("Filas de silver/ibex / gold/hecho_cotizacion",
+                        f"{contar_filas_delta(self.spark, config.SILVER_IBEX)} / {contar_filas_delta(self.spark, config.GOLD_HECHO)}")
+        self.view.valor("Filas de gold/dim_empresa / gold/dim_fecha",
+                        f"{contar_filas_delta(self.spark, config.GOLD_DIM_EMPRESA)} / {contar_filas_delta(self.spark, config.GOLD_DIM_FECHA)}")
         self.view.esquema(hecho)
         self.view.filas(hecho.orderBy("Ticker", "Fecha"), 5)
         self.view.mensaje("Comentario: modelo en estrella. El hecho (hecho_cotizacion) tiene una fila por "
                           "empresa y día con las medidas (precios, volumen, sentimiento); las dimensiones "
-                          "dim_empresa (Ticker, sector, industria...) y dim_fecha (año, mes, día de la "
-                          "semana...) aportan los atributos para filtrar y agrupar. El cruce es un left join: "
+                          "dim_empresa (Ticker, sector, industria...) y dim_fecha (año, trimestre, mes, "
+                          "semana) aportan los atributos para filtrar y agrupar. El cruce es un left join: "
                           "no se pierde ninguna cotización, y si no hay sentimiento queda nulo.")
-
     def ej11(self):
         # Ej11 (opcional)
         # Herramienta IA usada: Claude
