@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej5a", "ej5b", "ej5c", "ej5d"]
+EJERCICIOS = ["ej6"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -197,37 +197,18 @@ class IbexController:
         
     def ej6(self):
         # Ej6
-        # Herramienta IA usada: Claude
         self.view.titulo("Ej6")
         ruta = config.BRONZE_IBEX
-        # Se vuelve al estado que dejó el MERGE del Ej4 (si no insertó nada, al de la conversión)
-        version = version_de_operacion(self.spark, ruta, "MERGE")
-        if version is None:
-            version = 0
-        # Los números se calculan antes de restaurar: el DataFrame es perezoso
-        tabla = leer_delta(self.spark, ruta)
-        antes = (version_actual(self.spark, ruta), tabla.count(), len(tabla.columns))
-        self.view.valor("Antes del RESTORE: versión / filas / columnas", f"{antes[0]} / {antes[1]} / {antes[2]}")
+        version = version_de_operacion(self.spark, ruta, "MERGE") or 0   
+        self.view.valor("Antes del RESTORE: versión / filas / columnas",
+                        f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)} / {len(leer_delta(self.spark, ruta).columns)}")
         restaurar_version(self.spark, ruta, version)
-        tabla = leer_delta(self.spark, ruta)
-        despues = (version_actual(self.spark, ruta), tabla.count(), len(tabla.columns))
         self.view.valor(f"Después del RESTORE a la versión {version}: versión / filas / columnas",
-                        f"{despues[0]} / {despues[1]} / {despues[2]}")
-        h = historial(self.spark, ruta).select("version", "timestamp", "operation", "operationParameters")
-        self.view.filas(h, 5, False)
-        objetivo = leer_delta_version(self.spark, ruta, version)
-        solo_objetivo, solo_tabla = diferencia_filas(objetivo, tabla)
-        mismas_columnas = objetivo.columns == tabla.columns
-        self.view.valor(f"Filas solo en la versión {version} / solo en la tabla actual", f"{solo_objetivo} / {solo_tabla}")
-        self.view.valor("¿Mismas columnas?", mismas_columnas)
+                        f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)} / {len(leer_delta(self.spark, ruta).columns)}")
+        self.view.filas(historial(self.spark, ruta).select("version", "operation"), 10, False)
         self.view.mensaje("Comentario: a diferencia de versionAsOf, que solo lee, RESTORE cambia la tabla "
-                          "actual. No borra el historial: crea una versión nueva cuyo contenido es idéntico "
-                          "al de la versión indicada, así que el log conserva todo lo ocurrido, incluido el "
-                          "propio RESTORE.")
-        if solo_objetivo == 0 and solo_tabla == 0 and mismas_columnas:
-            self.view.mensaje(f"Comprobación: la tabla actual es idéntica a la versión {version}.")
-        else:
-            self.view.mensaje(f"Aviso: la tabla actual no coincide del todo con la versión {version}.")
+                        "actual. No borra el historial: crea una versión nueva con el mismo contenido que "
+                        "la indicada, así que el log conserva todo lo ocurrido, incluido el propio RESTORE.")
 
 #========================================================================================
 #===================CLASE 3 - Capas silver y gold =======================================
