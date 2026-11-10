@@ -24,7 +24,7 @@ from src.vista.ibex_view import IbexView
 
 # Ejercicios implementados, en orden de ejecución.
 EJERCICIOS = ["ej1a", "ej1b", "ej1c", "ej2a", "ej2b", "ej2c", "ej3", "ej4", "ej5a", "ej5b", "ej5c", "ej5d", "ej6", "ej7", "ej8", "ej9", "ej10", "ej11", "ej12", "ej13"]
-EJERCICIOS = ["ej6"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
+EJERCICIOS = ["ej7"]  # Para pruebas rápidas, comentar para ejecutar todos los ejercicios
 
 class IbexController:
     """Orquesta los ejercicios: llama a funciones del modelo y se las pasa a la vista.
@@ -206,9 +206,6 @@ class IbexController:
         self.view.valor(f"Después del RESTORE a la versión {version}: versión / filas / columnas",
                         f"{version_actual(self.spark, ruta)} / {contar_filas_delta(self.spark, ruta)} / {len(leer_delta(self.spark, ruta).columns)}")
         self.view.filas(historial(self.spark, ruta).select("version", "operation"), 10, False)
-        self.view.mensaje("Comentario: a diferencia de versionAsOf, que solo lee, RESTORE cambia la tabla "
-                        "actual. No borra el historial: crea una versión nueva con el mismo contenido que "
-                        "la indicada, así que el log conserva todo lo ocurrido, incluido el propio RESTORE.")
 
 #========================================================================================
 #===================CLASE 3 - Capas silver y gold =======================================
