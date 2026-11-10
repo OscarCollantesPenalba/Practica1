@@ -1,5 +1,7 @@
 # Práctica 1 - Data Lake con Delta y limpieza de datos (IBEX-35)
 
+Repositorio en GitHub: https://github.com/OscarCollantesPenalba/Practica1
+
 Data lake por capas (bronze, silver y gold) con Delta Lake sobre ficheros locales, construido con
 PySpark 4.0.1 en modo local. Cruza los precios diarios de las 35 empresas del IBEX-35 (Yahoo Finance)
 con un índice de sentimiento por sector (CSV de un analista) y deja la capa gold en un modelo en
