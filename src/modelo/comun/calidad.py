@@ -51,12 +51,6 @@ def perfil_sentimiento(df):
     }
 
 
-# Usado en: Ej9
-def claves_con_nulo(df, clave, columna):
-    """Valores de 'clave' (por ejemplo Ticker) cuya 'columna' (por ejemplo Sector) es nula."""
-    return sorted(r[clave] for r in df.filter(F.col(columna).isNull()).select(clave).collect())
-
-
 # Usado en: Ej13
 def integridad_estrella(hecho, dim_empresa, dim_fecha):
     """Ej13: comprueba que el modelo en estrella es consistente antes de exportarlo.

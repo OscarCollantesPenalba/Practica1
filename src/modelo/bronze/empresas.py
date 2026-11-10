@@ -1,14 +1,9 @@
-"""Bronze - empresas: objeto info de Yahoo de cada ticker, tal cual y sin limpiar (bronze/empresas).
-
-Usado en: Ej9.
-"""
 import time
 from datetime import date
 
 import yfinance as yf
 from pyspark.sql.types import DateType, DoubleType, LongType, StringType, StructField, StructType
 
-# Ej9 - Esquema de bronze/empresas: valores del objeto info de Yahoo tal cual, sin limpiar.
 # Solo Ticker y FechaExtraccion son obligatorios: cualquier dato de Yahoo puede faltar.
 ESQUEMA_EMPRESAS = StructType([
     StructField("Ticker", StringType(), False),
@@ -16,11 +11,8 @@ ESQUEMA_EMPRESAS = StructType([
     StructField("sector", StringType(), True),
     StructField("industry", StringType(), True),
     StructField("country", StringType(), True),
-    StructField("currency", StringType(), True),
-    StructField("exchange", StringType(), True),
     StructField("marketCap", LongType(), True),
     StructField("beta", DoubleType(), True),
-    StructField("recommendationKey", StringType(), True),
     StructField("recommendationMean", DoubleType(), True),
     StructField("numberOfAnalystOpinions", LongType(), True),
     StructField("targetMeanPrice", DoubleType(), True),
@@ -28,48 +20,43 @@ ESQUEMA_EMPRESAS = StructType([
 ])
 
 
-def _convertir(funcion, valor):
-    """Aplica la conversión de tipo; si Yahoo trae algo inesperado, devuelve None en vez de romper."""
-    try:
-        return funcion(valor)
-    except (TypeError, ValueError):
-        return None
-
-
-def _info_con_reintentos(ticker, reintentos=3, espera=2):
-    ultimo_error = None
-    for intento in range(1, reintentos + 1):
+def _info(ticker):
+    """Objeto info de Yahoo. Reintenta 3 veces (Yahoo limita las peticiones); si falla, devuelve {}."""
+    # Herramienta IA usada: Claude
+    
+    for _ in range(3):
         try:
             info = yf.Ticker(ticker).info
             if info:
                 return info
-        except Exception as error:
-            ultimo_error = error
-        if intento < reintentos:
-            time.sleep(espera * intento)
-    raise ValueError(f"Sin info de Yahoo Finance para {ticker}" + (f": {ultimo_error}" if ultimo_error else ""))
+        except Exception:
+            pass
+        time.sleep(2)
+    return {}
+
+
+def _a_tipo(tipo, valor):
+    """Convierte el valor al tipo del esquema; si falta o viene raro, devuelve None."""
+    # Herramienta IA usada: Claude
+    
+    try:
+        return tipo(valor)
+    except (TypeError, ValueError):
+        return None
 
 
 # Usado en: Ej9
 def descargar_info_empresas(spark, tickers):
-    """Ej9: descarga el objeto info de cada ticker. Devuelve (DataFrame, tickers sin datos).
-
-    Los tickers sin datos aparecen igualmente, con todo nulo salvo Ticker y FechaExtraccion,
-    para que la dimensión tenga siempre una fila por empresa.
-    """
-    hoy, filas, fallidos = date.today(), [], []
+    """Descarga el objeto info de cada ticker y lo devuelve como DataFrame, sin limpiar.
+    Un ticker sin datos aparece igualmente, con todo nulo salvo Ticker y FechaExtraccion."""
+    # Herramienta IA usada: Claude
+    
+    filas = []
     for ticker in tickers:
-        try:
-            info = _info_con_reintentos(ticker)
-        except ValueError:
-            info, fallidos = {}, fallidos + [ticker]
-        texto = lambda c: _convertir(str, info.get(c)) if info.get(c) is not None else None
-        filas.append((ticker, texto("longName"), texto("sector"), texto("industry"), texto("country"),
-                      texto("currency"), texto("exchange"), _convertir(int, info.get("marketCap")),
-                      _convertir(float, info.get("beta")), texto("recommendationKey"),
-                      _convertir(float, info.get("recommendationMean")),
-                      _convertir(int, info.get("numberOfAnalystOpinions")),
-                      _convertir(float, info.get("targetMeanPrice")), hoy))
-    if len(fallidos) == len(tickers):
-        raise ValueError("No se pudo obtener la info de ningún ticker (¿sin conexión o límite de Yahoo?).")
-    return spark.createDataFrame(filas, ESQUEMA_EMPRESAS), fallidos
+        info = _info(ticker)
+        filas.append((ticker, info.get("longName"), info.get("sector"), info.get("industry"),
+                      info.get("country"), _a_tipo(int, info.get("marketCap")),
+                      _a_tipo(float, info.get("beta")), _a_tipo(float, info.get("recommendationMean")),
+                      _a_tipo(int, info.get("numberOfAnalystOpinions")),
+                      _a_tipo(float, info.get("targetMeanPrice")), date.today()))
+    return spark.createDataFrame(filas, ESQUEMA_EMPRESAS)
